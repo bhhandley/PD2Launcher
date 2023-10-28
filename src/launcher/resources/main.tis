@@ -1,15 +1,15 @@
 ﻿// the purpose of this function is to ensure that the database is properly initialized with the necessary default values 
 // for options and an empty lootfilters object, if they do not exist already.
 function initDb(storage) {
-  // Load saved options or use defaults
-  storage.root = {
-    options: {
-      skiptobnet: true,
-    },
-    lootfilters: {},
-  };
+	// Load saved options or use defaults
+	storage.root = {
+		options: {
+			skiptobnet: true,
+		},
+		lootfilters: {},
+	};
 
-  return storage.root;
+	return storage.root;
 }
 
 // Declare variables for storage and storageRoot
@@ -29,7 +29,7 @@ try {
 }
 
 // Fixes update to latest version.
-if (storageRoot.lootfilters == null){
+if (storageRoot.lootfilters == null) {
 	storageRoot.lootfilters = {};
 }
 
@@ -62,7 +62,7 @@ event keydown (e) {
 	}
 }
 
-// called when launcher is opened  justreally placing it on screen in not some stupid place and loading the checkbox's and radios
+// called when launcher is opened	justreally placing it on screen in not some stupid place and loading the checkbox's and radios
 self.ready = function() {
 	// connect to debugger
 	if( view.connectToInspector ) view.connectToInspector();
@@ -93,7 +93,7 @@ self.on("click", "a[href^=http]", function(evt) {
 
 //handle clicking play button
 $(#play-button).onClick = function() {
-stdout.printf("ddrawOptions  play was selected");
+stdout.printf("ddrawOptions	play was selected");
 	//play button animation
 	playButton.attributes["disabled"] = true;
 	playButton.attributes.addClass("disabled");
@@ -116,84 +116,85 @@ stdout.printf("ddrawOptions  play was selected");
 
 // open the options page and read storage for the radio buttons if one has never been selected by user to select 3dfx
 $(#options-button).onClick = function() {
-  modalBackground.attributes.addClass("is-visible");
-  optionsModal.attributes.addClass("is-visible");
+	modalBackground.attributes.addClass("is-visible");
+	optionsModal.attributes.addClass("is-visible");
 
-  // Check which radio button is selected and mark it as checked
-  if (storageRoot.options.renderer == "-3dfx") {
-    var radio3dfx = self.select("#3dfx");
-    radio3dfx.checked = true;
-    showOrHideDdrawOptions("none");
-  } else if (storageRoot.options.renderer == "-ddraw") {
-    var radioDdraw = self.select("#ddraw");
-    radioDdraw.checked = true;
-    showOrHideDdrawOptions("block");
-  } else {
-    var radio3dfx = self.select("#3dfx");
-    radio3dfx.checked = true;
-    showOrHideDdrawOptions("none");
-  }
+	// Check which radio button is selected and mark it as checked
+	if (storageRoot.options.renderer == "-3dfx") {
+		var radio3dfx = self.select("#3dfx");
+		radio3dfx.checked = true;
+		showOrHideDdrawOptions("none");
+	} else if (storageRoot.options.renderer == "-ddraw") {
+		var radioDdraw = self.select("#ddraw");
+		radioDdraw.checked = true;
+		showOrHideDdrawOptions("block");
+	} else {
+		var radio3dfx = self.select("#3dfx");
+		radio3dfx.checked = true;
+		showOrHideDdrawOptions("none");
+	}
 
-  // Mark the correct checkboxes and input values for ddrawOptions
-  var ddrawOptions = storageRoot.ddrawOptions;
-  for (var key in ddrawOptions) {
-    var value = ddrawOptions[key];
-    var element = self.select("input.ddraw[id='" + key + "'], select.ddraw[id='" + key + "']");
-    if (element) {
-      switch (element.attributes#type) {
-        case "checkbox":
-          element.checked = value;
-          break;
-        case "number":
-          element.value = value;
-          break;
-        case "dropdown":
-          element.value = value;
-          break;
-      }
-    }
-  }
+	// Mark the correct checkboxes and input values for ddrawOptions
+	var ddrawOptions = storageRoot.ddrawOptions;
+	for (var key in ddrawOptions) {
+		var value = ddrawOptions[key];
+		var element = self.select("input.ddraw[id='" + key + "'], select.ddraw[id='" + key + "']");
+		if (element) {
+			switch (element.attributes#type) {
+				case "checkbox":
+					element.checked = value;
+					break;
+				case "number":
+					element.value = value;
+					break;
+				case "dropdown":
+					element.value = value;
+					break;
+				default:
+					break
+			}
+		}
+	}
 }
 
 //event watcher for clicking #width a ddraw option
 $(#width).onMouse = function(evt) {
-    switch(evt.type) {
-      case Event.HANDLED | Event.MOUSE_DOWN: break; // handled mouse down event in bubbling phase
-    }
+	switch(evt.type) {
+		case Event.HANDLED | Event.MOUSE_DOWN: break; // handled mouse down event in bubbling phase
+	}
 }
 
 // deal with changing the mode option
 event change $(select.ddraw-select) {
-  switch (this.value) {
-    case "fullscreen":
-      storageRoot.ddrawOptions.windowed = false;
-      storageRoot.ddrawOptions.fullscreen = true;
-      break;
-    case "borderless":
-      storageRoot.ddrawOptions.windowed = true;
-      storageRoot.ddrawOptions.fullscreen = true;
-      break;
-    case "windowed":
-      storageRoot.ddrawOptions.windowed = true;
-      storageRoot.ddrawOptions.fullscreen = false;
-      $(#resolution).style.set {display: "block"};
-      break;
-    default:
-      break;
-  }
-  
-  // show or hide resolution options based on mode
-  if (storageRoot.ddrawOptions.windowed) {
-    $(#resolution).style.set {display: "block"};
-  } else {
-    $(#resolution).style.set {display: "none"};
-  }
+	switch (this.value) {
+		case "fullscreen":
+			storageRoot.ddrawOptions.windowed = false;
+			storageRoot.ddrawOptions.fullscreen = true;
+			break;
+		case "borderless":
+			storageRoot.ddrawOptions.windowed = true;
+			storageRoot.ddrawOptions.fullscreen = true;
+			break;
+		case "windowed":
+			storageRoot.ddrawOptions.windowed = true;
+			storageRoot.ddrawOptions.fullscreen = false;
+			$(#resolution).style.set {display: "block"};
+			break;
+		default:
+			break;
+	}
+	
+	// show or hide resolution options based on mode
+	if (storageRoot.ddrawOptions.windowed) {
+		$(#resolution).style.set {display: "block"};
+	} else {
+		$(#resolution).style.set {display: "none"};
+	}
 }
 
 //deal with clicking the lootfilters button under the options button
 $(#loot-filters-button).onClick = function() {
-	getLootFilterJsonList(); 
-		   
+	getLootFilterJsonList();		  
 }
 
 // deal with clicking the modal background
@@ -210,7 +211,7 @@ for(var modalCloseButton in modalCloseButtons) {
 }
 
 //super annoying thing that runs on thoughts and prayers
-// basically only ever pass in a string "none" or "block"  (none = hide and block = show)
+// basically only ever pass in a string "none" or "block"	(none = hide and block = show)
 function showOrHideDdrawOptions(noneOrBlock) {
 	// Don't forget the header
 	$(#ddraw-header).style.set({ display: noneOrBlock });
@@ -238,39 +239,42 @@ function showOrHideDdrawOptions(noneOrBlock) {
 
 //deal with selecting the options page controls (radios and checkbox's)
 event change $(input.launcher-option) {
-  switch(this.attributes#type) {
-    case "checkbox":
-      storageRoot.options[this.attributes#name] = this.checked;
-      break;
-    case "radio":
-      if (this.checked) {
-        var value = this.attributes#value.toString();
-        storageRoot.options.renderer = value; // overwrite the renderer value
-		if (value === "-3dfx") {
-		  showOrHideDdrawOptions("none")
-        } else {
-          showOrHideDdrawOptions("block")
-        }
-      }
-      break;
-  }
+	switch(this.attributes#type) {
+		case "checkbox":
+			storageRoot.options[this.attributes#name] = this.checked;
+			break;
+		case "radio":
+			if (this.checked) {
+				var value = this.attributes#value.toString();
+				storageRoot.options.renderer = value; // overwrite the renderer value
+				
+				if (value === "-3dfx") {
+					showOrHideDdrawOptions("none")
+				} else {
+					showOrHideDdrawOptions("block")
+				}
+			}
+			break;
+		default:
+			break;
+	}
 }
 
 // deal with changing the ddraw options
 event change $(input.ddraw, select.ddraw) {
-    switch (this.attributes#type) {
-        case "checkbox":
-            storageRoot.ddrawOptions[this.attributes#id] = this.checked;
-            break;
-        case "number":
-            storageRoot.ddrawOptions[this.attributes#id] = this.value;
-            break;
-        case "dropdown":
+	switch (this.attributes#type) {
+		case "checkbox":
+			storageRoot.ddrawOptions[this.attributes#id] = this.checked;
+			break;
+		case "number":
+			storageRoot.ddrawOptions[this.attributes#id] = this.value;
+			break;
+		case "dropdown":
 			storageRoot.ddrawOptions[this.attributes#id || this.id] = this.value;
 			break;
-        default:
-            break;
-    }
+		default:
+			break;
+	}
 }
 
 //method for closing filters or options pages
@@ -288,9 +292,9 @@ function closeModals() {
 }
 
 // checks github list for community submitted loot filters
-function getLootFilterJsonList(){
+function getLootFilterJsonList() {
 	// If the list has not been retrieved yet, fetch it using an HTTP request.
-	if (jsonFilters == null){
+	if (jsonFilters == null) {
 		jsonFilters = [];
 		view.request({
 			url: "https://raw.githubusercontent.com/Project-Diablo-2/LootFilters/main/filters.json",
@@ -302,7 +306,7 @@ function getLootFilterJsonList(){
 				jsonFilters.push({"author":"local", "url":"", "name":"local"});
 
 				// Add each loot filter to the list.
-				for (var d in data){
+				for (var d in data ) {
 					jsonFilters.push(d);
 				}
 
@@ -319,7 +323,7 @@ function getLootFilterJsonList(){
 }
 
 //deal with opening the lootfilters page
-function openLootFiltersModal(){
+function openLootFiltersModal() {
 	loadLootFilterAuthors();
 	modalBackground.attributes.addClass("is-visible");
 	lootFilterModal.attributes.addClass("is-visible");
@@ -328,12 +332,12 @@ function openLootFiltersModal(){
 // Clears the current list of loot filter authors and generates a new list
 // based on the jsonFilters object. Also handles button clicks for selecting
 // a loot filter author and highlighting the selected author.
-function loadLootFilterAuthors(){
+function loadLootFilterAuthors() {
 	// Clear the current list of loot filter authors.
 	lootFilterAuthors.clear();
 
 	// Check if there are any loot filters available.
-	if (jsonFilters != null){
+	if (jsonFilters != null) {
 
 		for(var item in jsonFilters) {
 			// Add a new button to the list of loot filter authors.
@@ -344,13 +348,13 @@ function loadLootFilterAuthors(){
 			);
 
 			// Add a click event listener to the author button text
-			$(#{item.author}btntext).on("click", function(evt, btn){
+			$(#{item.author}btntext).on("click", function(evt, btn) {
 				btn.parent.postEvent("click");
 			});
 
 			// Add a click event listener to the author button to select the
 			// loot filter author and highlight the selected author.
-			$(#{item.author}btn).on("click", function(evt, btn){
+			$(#{item.author}btn).on("click", function(evt, btn) {
 				var buttons = $$(.author-button);
 				for (var button in buttons) {
 					button.attributes.removeClass("author-button-selected");
@@ -363,8 +367,8 @@ function loadLootFilterAuthors(){
 
 			// If a loot filter is already selected in the storage, simulate a
 			// click on the corresponding author button to highlight it.
-			if (!lootFilterLoaded){
-				if (item.author == storageRoot.lootfilters["selectedAuthor"]){
+			if (!lootFilterLoaded) {
+				if (item.author == storageRoot.lootfilters["selectedAuthor"]) {
 					$(#{item.author}btn).postEvent("click");
 				}
 			}
@@ -374,7 +378,7 @@ function loadLootFilterAuthors(){
 
 // Selects a loot filter author and retrieves their list of filters
 // author: the name of the author to select
-function selectLootFilterAuthor(author){
+function selectLootFilterAuthor(author) {
 	
 	// Clear existing loot filter data
 	selectedLootFilterAuthor = null;
@@ -382,22 +386,22 @@ function selectLootFilterAuthor(author){
 	lootFilterListHeader.clear();
 
 	// If an author is selected
-	if (author != null && author != ""){
+	if (author != null && author != "") {
 		// Get author object
 		for(var item in jsonFilters) {
-			if (item.author == author){
+			if (item.author == author) {
 				selectedLootFilterAuthor = item;
 				break;
 			}
 		}
 		
 		// If the author is local
-		if (author.toLowerCase() == "local"){
+		if (author.toLowerCase() == "local") {
 			var localFiles = view.frame.getLocalFiles();
 			var filters = [];
-			for (var item in localFiles){
+			for (var item in localFiles) {
 				var f = item + "";
-				if (f.indexOf(".filter") != -1){
+				if (f.indexOf(".filter") != -1) {
 					filters.push({"name": f});
 				}
 			}
@@ -406,9 +410,9 @@ function selectLootFilterAuthor(author){
 			lootfilterListDictionary[author] = filters;
 			onLootFilterAuthorLoadComplete(selectedLootFilterAuthor, filters);
 		} else {
-			if (lootfilterListDictionary[author] == null){
+			if (lootfilterListDictionary[author] == null) {
 				// If the author has not been loaded before, look up their Git repository Lookup author git repo
-				if (selectedLootFilterAuthor != null && selectedLootFilterAuthor.url != null){
+				if (selectedLootFilterAuthor != null && selectedLootFilterAuthor.url != null) {
 					view.request({
 					url: selectedLootFilterAuthor.url,
 					protocol: #basic,
@@ -416,8 +420,8 @@ function selectLootFilterAuthor(author){
 					noCache: false,
 					success: function(data, status) {
 						var filters = [];
-						for (var item in data){
-							if (item.name.indexOf(".filter") != -1){
+						for (var item in data) {
+							if (item.name.indexOf(".filter") != -1) {
 								filters.push(item);
 							}
 						}
@@ -430,7 +434,7 @@ function selectLootFilterAuthor(author){
 					error:function(err, status) {
 					}
 				});
-				}                     
+				}
 			} else {
 				// // If the author has been loaded before, use the cached data
 				onLootFilterAuthorLoadComplete(selectedLootFilterAuthor, lootfilterListDictionary[author]);
@@ -440,9 +444,9 @@ function selectLootFilterAuthor(author){
 }
 
 // Handles the completion of loading loot filters for a selected author
-function onLootFilterAuthorLoadComplete(author, filters){
+function onLootFilterAuthorLoadComplete(author, filters) {
 	var url = "https://github.com/Project-Diablo-2/LootFilters";
-	if (author.url){
+	if (author.url) {
 		var repoStart = author.url.indexOf("/repos/") + 7;
 		var repo = author.url.substr(repoStart);
 		var reposEnd = repo.indexOf("/contents");
@@ -456,7 +460,7 @@ function onLootFilterAuthorLoadComplete(author, filters){
 		</div>
 	);
 
-	if (filters != null){
+	if (filters != null) {
 		for(var item in filters) {
 			var name = item.name.substr(0, item.name.indexOf(".filter"));
 			lootFilterList.$append(
@@ -465,19 +469,19 @@ function onLootFilterAuthorLoadComplete(author, filters){
 				</div>
 			);
 
-			$(#{name}btntext).on("click", function(evt, btn){
+			$(#{name}btntext).on("click", function(evt, btn) {
 				btn.parent.postEvent("click");
 			});
 
-			$(#{name}btn).on("click", function(evt, btn){
+			$(#{name}btn).on("click", function(evt, btn) {
 				var buttons = $$(.lootfilter-button);
 				for (var button in buttons) {
 					button.attributes.removeClass("lootfilter-button-selected");
 				}
 
-				for (var f in lootfilterListDictionary[selectedLootFilterAuthor.author]){
+				for (var f in lootfilterListDictionary[selectedLootFilterAuthor.author]) {
 					var filterName = f.name.substr(0, f.name.indexOf(".filter"));
-					if (filterName == btn.id.substr(0, btn.id.length - 3)){
+					if (filterName == btn.id.substr(0, btn.id.length - 3)) {
 						selectedLootFilter = f;
 					}
 				}
@@ -490,20 +494,20 @@ function onLootFilterAuthorLoadComplete(author, filters){
 
 				savedLootFilterListLabel.clear();
 
-				if (lootFilterLoaded == true){
+				if (lootFilterLoaded == true) {
 					savedLootFilterListLabel.$append(
 						<span>Config Saved</span>
 					);
 				}
 
-				savedLootFilterListLabel.timer(1000, function(){
+				savedLootFilterListLabel.timer(1000, function() {
 					savedLootFilterListLabel.clear();
 					return false;
 				});
 			});
 
-			if (!lootFilterLoaded){
-				if (item.name == storageRoot.lootfilters["selectedFilter"]){
+			if (!lootFilterLoaded) {
+				if (item.name == storageRoot.lootfilters["selectedFilter"]) {
 					$(#{name}btn).postEvent("click");
 				}
 			}
@@ -514,119 +518,119 @@ function onLootFilterAuthorLoadComplete(author, filters){
 }
 
 function loadOptions() {
-  var options = storageRoot.options;
-  var hasRendererOption = false;
+	var options = storageRoot.options;
+	var hasRendererOption = false;
 
-  if (!("ddrawOptions" in storageRoot)) {
-    storageRoot.ddrawOptions = createDdrawOptionsFallbackDefaults();
-    stdout.printf("ddrawOptions have been created?:  %s \n", storageRoot.ddrawOptions);
-  }
+	if (!("ddrawOptions" in storageRoot)) {
+		storageRoot.ddrawOptions = createDdrawOptionsFallbackDefaults();
+		stdout.printf("ddrawOptions have been created?:	%s \n", storageRoot.ddrawOptions);
+	}
 
-  for(var key in options) {
-    var value = options[key];
-    var element = self.select("input.launcher-option[name='" + key + "']");
-    
-    // Skip elements that don't match a saved option
-    if(element == null) {
-      continue;
-    }
-    
-    if (element.attributes#type === "radio") {
-      hasRendererOption = true;
-    }
+	for(var key in options) {
+		var value = options[key];
+		var element = self.select("input.launcher-option[name='" + key + "']");
+		
+		// Skip elements that don't match a saved option
+		if(element == null) {
+			continue;
+		}
+		
+		if (element.attributes#type === "radio") {
+			hasRendererOption = true;
+		}
 
-    switch(element.attributes#type) {
-      case "checkbox":
-        element.checked = value;
-        break;
-      case "radio":
-        if (element.attributes#value == value) {
-          element.checked = true;
-          hasRendererOption = true;
-        }
-        break;
-      default:
-        element.attributes#value = value;
-        break;
-    }
-  }
+		switch(element.attributes#type) {
+			case "checkbox":
+				element.checked = value;
+				break;
+			case "radio":
+				if (element.attributes#value == value) {
+					element.checked = true;
+					hasRendererOption = true;
+				}
+				break;
+			default:
+				element.attributes#value = value;
+				break;
+		}
+	}
 
-  // This is here as a fallback to that if a user has not selected a renderer to selectone and update that to the storageRoot.
-  // We are doing this so if a user does a fresh install or is updating launcher from v1.5 or less it will add this defaulted selection to storage
-  if (!hasRendererOption) {
-    var element = self.select("input.launcher-option[name='renderer'][value='-3dfx']");
-    if (element != null) {
-      element.checked = true;
-      var value = element.attributes#value.toString();
-      storageRoot.options.renderer = value; // overwrite the renderer value
-    }
-  }
+	// This is here as a fallback to that if a user has not selected a renderer to selectone and update that to the storageRoot.
+	// We are doing this so if a user does a fresh install or is updating launcher from v1.5 or less it will add this defaulted selection to storage
+	if (!hasRendererOption) {
+		var element = self.select("input.launcher-option[name='renderer'][value='-3dfx']");
+		if (element != null) {
+			element.checked = true;
+			var value = element.attributes#value.toString();
+			storageRoot.options.renderer = value; // overwrite the renderer value
+		}
+	}
 }
 
 // Returns a string of command-line arguments based on the state of the launcher options
 function getLaunchArguments() {
-  var args = [];
-  var options = $$(input.launcher-option); // get all launcher options
+	var args = [];
+	var options = $$(input.launcher-option); // get all launcher options
 
-  for (var option of options) {
-    if (option.attributes#type == "checkbox" && option.checked) {
-      args.push(option.value); // add checkbox option if it is checked
-    }
-    if (option.attributes#type == "radio" && option.checked) {
-      if (option.attributes#value === "-3dfx") {
-        args.push(option.attributes#value); // add radio option value if it is checked
-      } else {
-        // remove -3dfx and -ddraw from args if they exist
-        var index = args.indexOf("-3dfx");
-        if (index !== -1) {
-          args.splice(index, 1);
-        }
-        index = args.indexOf("-ddraw");
-        if (index !== -1) {
-          args.splice(index, 1);
-        }
-      }
-    }
-  }
+	for (var option of options) {
+		if (option.attributes#type == "checkbox" && option.checked) {
+			args.push(option.value); // add checkbox option if it is checked
+		}
+		if (option.attributes#type == "radio" && option.checked) {
+			if (option.attributes#value === "-3dfx") {
+				args.push(option.attributes#value); // add radio option value if it is checked
+			} else {
+				// remove -3dfx and -ddraw from args if they exist
+				var index = args.indexOf("-3dfx");
+				if (index !== -1) {
+					args.splice(index, 1);
+				}
+				index = args.indexOf("-ddraw");
+				if (index !== -1) {
+					args.splice(index, 1);
+				}
+			}
+		}
+	}
 
-  return args.join(" ");
+	return args.join(" ");
 }
 
 function writeDdrawOptionsToIni(ddrawOptions) {
-// Iterate over the properties in storageRoot.ddrawOptions
-for (var key in storageRoot.ddrawOptions) {
-  var value = storageRoot.ddrawOptions[key];
-}
-
- view.frame.setDdrawOptions(storageRoot.ddrawOptions);
+	// Iterate over the properties in storageRoot.ddrawOptions
+	for (var key in storageRoot.ddrawOptions) {
+		var value = storageRoot.ddrawOptions[key];
+	}
+	
+	view.frame.setDdrawOptions(storageRoot.ddrawOptions);
 }
 
 // if ddraw db is null fix that
 function createDdrawOptionsFallbackDefaults() {
-  return {
-    fullscreen: true,
-    windowed: false,
-    width: 0,
-    height: 0,
-    posx: -32000,
-    posy: -32000,
-    maintas: false,
-    boxing: false,
-    vsync: false,
-    adjmouse: false,
-    devmode: false,
-    border: false,
-    resizeable: true,
-    noactivateapp: false,
-    handlemouse: true,
-    nonexclusive: false,
-    maxfps: "60",
-    maxgameticks: "-2",
-    savesettings: "1",
-    renderer2: "opengl",
-    hook: "4",
-    minfps: "0",
-    shader: "Shaders\\xbr\\xbr-lv2-noblend.glsl",
-    singlecpu: true
-  };
+	return {
+		fullscreen: true,
+		windowed: false,
+		width: 0,
+		height: 0,
+		posx: -32000,
+		posy: -32000,
+		maintas: false,
+		boxing: false,
+		vsync: false,
+		adjmouse: false,
+		devmode: false,
+		border: false,
+		resizeable: true,
+		noactivateapp: false,
+		handlemouse: true,
+		nonexclusive: false,
+		maxfps: "60",
+		maxgameticks: "-2",
+		savesettings: "1",
+		renderer2: "opengl",
+		hook: "4",
+		minfps: "0",
+		shader: "Shaders\\xbr\\xbr-lv2-noblend.glsl",
+		singlecpu: true
+	};
 }

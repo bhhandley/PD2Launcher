@@ -320,7 +320,7 @@ public:
 			SOM_FUNC(getDdrawOptions),
 			SOM_FUNC(setDdrawOptions)
 		)
-		SOM_PASSPORT_END
+	SOM_PASSPORT_END
 
 		bool _update(sciter::string args) {
 #ifndef _DEBUG
