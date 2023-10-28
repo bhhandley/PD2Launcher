@@ -2,29 +2,48 @@
 // for options and an empty lootfilters object, if they do not exist already.
 function initDb(storage) {
 	// Load saved options or use defaults
-	storage.root = {
+	storage = {
 		options: {
 			skiptobnet: true,
 		},
 		lootfilters: {},
 	};
 
-	return storage.root;
+	return storage;
 }
 
 // Declare variables for storage and storageRoot
 var storage;
 var storageRoot;
+var settingsFile = System.home("PD2Launcher.json");
 
-// Attempt to open the settings.db database
-// If the database exists, set the storageRoot variable to its root object
-// initDb(storage) will mostly only be called on first time install
+// Open and load settings, fall back to defaults if missing
 try {
 	stdout.printf("opening storage");
-	storage = Storage.open(System.home("settings.db"));
-	storageRoot = storage.root || initDb(storage);
+
+	// Read and parse launcher options settings file
+	var settings;
+	var file = Stream.openFile(settingsFile, "r");
+	if (file instanceof Stream) {
+		settings = parseData(file);
+		file.close();
+
+		// If we don't have an object from parsing the file, null it so defaults will be loaded
+		if (typeof settings == "object") {
+			if (!"options" in settings || !"lootfilters" in settings) {
+				storage = null;
+			} else {
+				storage = settings;
+			}
+		}
+	}
+
+	// Left over from old Storage method -- load settings "root" from the file or set defaults
+	storageRoot = storage || initDb(storage);
+
 	stdout.printf("storage created");
 } catch (e) {
+	//view.msgbox(#alert, e);
 	view.msgbox(#alert, "Failed to load settings. Your options/loot filters will not save. \nThis is normally a permissions issue and running as admin once typically fixes it.", "Settings failed to load.");
 }
 
@@ -146,7 +165,7 @@ $(#options-button).onClick = function() {
 	var ddrawOptions = storageRoot.ddrawOptions;
 	for (var key in ddrawOptions) {
 		var value = ddrawOptions[key];
-		var element = self.select("input.ddraw[id='" + key + "'], select.ddraw[id='" + key + "']");
+		var element = self.select("input.ddraw[id='" + key + "'], select.ddraw-select[id='" + key + "']");
 		if (element) {
 			switch (element.attributes#type) {
 				case "checkbox":
@@ -157,6 +176,7 @@ $(#options-button).onClick = function() {
 					break;
 				case "dropdown":
 					element.value = value;
+					element.postEvent("change", element.value);
 					break;
 				default:
 					break
@@ -174,26 +194,10 @@ $(#width).onMouse = function(evt) {
 
 // deal with changing the mode option
 event change $(select.ddraw-select) {
-	switch (this.value) {
-		case "fullscreen":
-			storageRoot.ddrawOptions.windowed = false;
-			storageRoot.ddrawOptions.fullscreen = true;
-			break;
-		case "borderless":
-			storageRoot.ddrawOptions.windowed = true;
-			storageRoot.ddrawOptions.fullscreen = true;
-			break;
-		case "windowed":
-			storageRoot.ddrawOptions.windowed = true;
-			storageRoot.ddrawOptions.fullscreen = false;
-			$(#resolution).style.set {display: "block"};
-			break;
-		default:
-			break;
-	}
+	storageRoot.ddrawOptions.mode = this.value;
 	
 	// show or hide resolution options based on mode
-	if (storageRoot.ddrawOptions.windowed) {
+	if (this.value == "windowed") {
 		$(#resolution).style.set {display: "block"};
 	} else {
 		$(#resolution).style.set {display: "none"};
@@ -290,6 +294,17 @@ event change $(input.ddraw, select.ddraw) {
 
 //method for closing filters or options pages
 function closeModals() {
+	// Write launcher options to json file
+	try {
+		var file = Stream.openFile(settingsFile, "w");
+		file << JSON.stringify(storageRoot, null, 4) + "\n";
+		file.close();
+	}
+	catch (e) {
+		//view.msgbox(#alert, e);
+		view.msgbox(#alert, "Failed to save settings. Your options/loot filters will not save. \nThis is normally a permissions issue and running as admin once typically fixes it.", "Settings failed to save.");
+	}
+
 	modalBackground.attributes.removeClass("is-visible");
 	lootFilterLoaded = false;
 	
@@ -407,13 +422,17 @@ function selectLootFilterAuthor(author) {
 		}
 		
 		// If the author is local
-		if (author.toLowerCase() == "local") {
+		if (author.toLowerCase() == "local" && author.toLowerCase != "localbtnt") {
 			var localFiles = view.frame.getLocalFiles();
 			var filters = [];
 			for (var item in localFiles) {
 				var f = item + "";
 				if (f.indexOf(".filter") != -1) {
-					filters.push({"name": f});
+					filters.push({
+						"name": f,
+						"url": System.home("filters/local/") + f,
+						"download_url": System.home("filters/local/") + f
+					});
 				}
 			}
 			
@@ -619,8 +638,7 @@ function writeDdrawOptionsToIni(ddrawOptions) {
 // if ddraw db is null fix that
 function createDdrawOptionsFallbackDefaults() {
 	return {
-		fullscreen: true,
-		windowed: false,
+		mode:"fullscreen",
 		width: 0,
 		height: 0,
 		posx: -32000,
