@@ -631,13 +631,13 @@ input[type=checkbox]:checked::after {
 
 #show-advanced-btn {
 	border-bottom: 1px solid rgba(0,0,0,0.0);
-  }
+}
 
 select option {
 	padding-left: 10dip !important;
 	padding-top: 5dip;
 	padding-bottom: 1dip;
-  }
+}
 
 label.radio, input[type=radio] {
 	cursor: pointer;
@@ -645,4 +645,14 @@ label.radio, input[type=radio] {
 
 label.radio {
 	font-size: 16px;
+}
+
+.label-button {
+	font-weight: normal;
+	text-decoration: none;
+}
+
+.label-button:hover {
+	font-weight: bolder;
+	text-decoration: underline;
 }

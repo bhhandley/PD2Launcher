@@ -318,7 +318,9 @@ public:
 			SOM_FUNC(setLootFilter),
 			SOM_FUNC(getLocalFiles),
 			SOM_FUNC(getDdrawOptions),
-			SOM_FUNC(setDdrawOptions)
+			SOM_FUNC(setDdrawOptions),
+			SOM_FUNC(remPD2WindowsSettings),
+			SOM_FUNC(setPD2WindowsSettings)
 		)
 	SOM_PASSPORT_END
 
@@ -351,6 +353,14 @@ public:
 		pending_futures.push_back(std::move(fut));
 
 		return true;
+	}
+
+	int setPD2WindowsSettings() {
+		return system(std::string("start powershell.exe -ExecutionPolicy Bypass -File SetPD2WindowsSettings.ps1").c_str());
+	}
+
+	int remPD2WindowsSettings() {
+		return system(std::string("start powershell.exe -ExecutionPolicy Bypass -File RemovePD2WindowsSettings.ps1").c_str());
 	}
 
 	bool setLootFilter(sciter::string author, sciter::string filter, sciter::string download_url, sciter::string url) {

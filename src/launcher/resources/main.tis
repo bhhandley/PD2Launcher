@@ -114,6 +114,14 @@ stdout.printf("ddrawOptions	play was selected");
 	view.frame.play(getLaunchArguments());
 }
 
+$(#set-windows-sec-button).onClick = function() {	
+	view.frame.setPD2WindowsSettings();
+}
+
+$(#rem-windows-sec-button).onClick = function() {	
+	view.frame.remPD2WindowsSettings();
+}
+
 // open the options page and read storage for the radio buttons if one has never been selected by user to select 3dfx
 $(#options-button).onClick = function() {
 	modalBackground.attributes.addClass("is-visible");
