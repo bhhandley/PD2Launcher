@@ -315,6 +315,7 @@ public:
 	SOM_PASSPORT_BEGIN(frame)
 		SOM_FUNCS(
 			SOM_FUNC(play),
+			SOM_FUNC(playPlugy),
 			SOM_FUNC(setLootFilter),
 			SOM_FUNC(getLocalFiles),
 			SOM_FUNC(getDdrawOptions),
@@ -353,6 +354,23 @@ public:
 		pending_futures.push_back(std::move(fut));
 
 		return true;
+	}
+
+	bool playPlugy(sciter::string args) {
+		this->call_function("self.finish_update");
+
+		STARTUPINFO info = { sizeof(info) };
+		PROCESS_INFORMATION processInfo;
+		std::wstring commandLine = L"plugy.exe " + args;
+		if (CreateProcess(NULL, &commandLine[0], NULL, NULL, TRUE, 0, NULL, NULL, &info, &processInfo)) {
+			//WaitForSingleObject(processInfo.hProcess, INFINITE);
+			CloseHandle(processInfo.hProcess);
+			CloseHandle(processInfo.hThread);
+
+			return true;
+		}
+
+		return false;
 	}
 
 	int setPD2WindowsSettings() {

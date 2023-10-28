@@ -4,7 +4,10 @@ function initDb(storage) {
 	// Load saved options or use defaults
 	storage = {
 		options: {
+			playmode: "online",
+			renderer: "-3dfx",
 			skiptobnet: true,
+			sndbkg: false,
 		},
 		lootfilters: {},
 	};
@@ -112,7 +115,8 @@ self.on("click", "a[href^=http]", function(evt) {
 
 //handle clicking play button
 $(#play-button).onClick = function() {
-stdout.printf("ddrawOptions	play was selected");
+	stdout.printf("ddrawOptions	play was selected");
+	
 	//play button animation
 	playButton.attributes["disabled"] = true;
 	playButton.attributes.addClass("disabled");
@@ -130,7 +134,19 @@ stdout.printf("ddrawOptions	play was selected");
 
 	// send commandline args to game
 	stdout.printf("about to try to send args");
-	view.frame.play(getLaunchArguments());
+
+	var args = getLaunchArguments();
+
+	switch (storageRoot.options.playmode) {
+		case "plugy":
+		case "plugy-modded":
+			view.frame.playPlugy(args)
+			break;
+
+		case "online":			
+		default:
+			view.frame.play(args);
+	}	
 }
 
 $(#set-windows-sec-button).onClick = function() {	
@@ -139,6 +155,10 @@ $(#set-windows-sec-button).onClick = function() {
 
 $(#rem-windows-sec-button).onClick = function() {	
 	view.frame.remPD2WindowsSettings();
+}
+
+$(#edit-plugyini-button).onClick = function() {
+	Sciter.launch("plugy.ini");
 }
 
 // open the options page and read storage for the radio buttons if one has never been selected by user to select 3dfx
@@ -258,18 +278,26 @@ event change $(input.launcher-option) {
 		case "checkbox":
 			storageRoot.options[this.attributes#name] = this.checked;
 			break;
+		
 		case "radio":
 			if (this.checked) {
 				var value = this.attributes#value.toString();
-				storageRoot.options.renderer = value; // overwrite the renderer value
+				var name = this.attributes#name.toString();
+
+				if (name === "renderer") {
+					storageRoot.options.renderer = value; // overwrite the renderer value
 				
-				if (value === "-3dfx") {
-					showOrHideDdrawOptions("none")
-				} else {
-					showOrHideDdrawOptions("block")
+					if (value === "-3dfx") {
+						showOrHideDdrawOptions("none")
+					} else {
+						showOrHideDdrawOptions("block")
+					}
+				} else if (name === "playmode") {
+					storageRoot.options.playmode = value;
 				}
 			}
 			break;
+		
 		default:
 			break;
 	}
@@ -550,6 +578,7 @@ function onLootFilterAuthorLoadComplete(author, filters) {
 function loadOptions() {
 	var options = storageRoot.options;
 	var hasRendererOption = false;
+	var hasPlaymodeOption = false;
 
 	if (!("ddrawOptions" in storageRoot)) {
 		storageRoot.ddrawOptions = createDdrawOptionsFallbackDefaults();
@@ -573,15 +602,24 @@ function loadOptions() {
 			case "checkbox":
 				element.checked = value;
 				break;
+
 			case "radio":
-				if (element.attributes#value == value) {
+				element = self.select("input.launcher-option[name='" + key + "'][value='" + value + "']");
+
+				if (element != null) {
 					element.checked = true;
-					hasRendererOption = true;
+
+					if (key == "renderer") {
+						hasRendererOption = true;
+					} else if (key == "playmode") {
+						hasPlaymodeOption = true;
+					}
 				}
+		
 				break;
+
 			default:
 				element.attributes#value = value;
-				break;
 		}
 	}
 
@@ -595,32 +633,43 @@ function loadOptions() {
 			storageRoot.options.renderer = value; // overwrite the renderer value
 		}
 	}
+  
+	if (!hasPlaymodeOption) {
+		var element = self.select("input.launcher-option[name='playmode'][value='online']");
+		if (element != null) {
+			element.checked = true;
+			var value = element.attributes#value.toString();
+			storageRoot.options.playmode = value; // overwrite the renderer value
+		}
+	}
 }
 
 // Returns a string of command-line arguments based on the state of the launcher options
 function getLaunchArguments() {
 	var args = [];
-	var options = $$(input.launcher-option); // get all launcher options
 
-	for (var option of options) {
-		if (option.attributes#type == "checkbox" && option.checked) {
-			args.push(option.value); // add checkbox option if it is checked
-		}
-		if (option.attributes#type == "radio" && option.checked) {
-			if (option.attributes#value === "-3dfx") {
-				args.push(option.attributes#value); // add radio option value if it is checked
-			} else {
-				// remove -3dfx and -ddraw from args if they exist
-				var index = args.indexOf("-3dfx");
-				if (index !== -1) {
-					args.splice(index, 1);
-				}
-				index = args.indexOf("-ddraw");
-				if (index !== -1) {
-					args.splice(index, 1);
-				}
-			}
-		}
+	if (storageRoot.options.renderer === '-3dfx') {
+		args.push(storageRoot.options.renderer);
+	}
+
+	switch (storageRoot.options.playmode) {
+		case 'plugy-modded':
+			args.push('-direct');
+			args.push('-txt');
+
+		case 'plugy':
+			if (storageRoot.options.sndbkg)
+				args.push('-sndbkg');
+			break;
+			
+		case 'online':
+			if (storageRoot.options.skiptobnet)
+				args.push('-skiptobnet');
+
+			if (storageRoot.options.sndbkg)
+				args.push('-sndbkg');
+			
+			break;
 	}
 
 	return args.join(" ");
