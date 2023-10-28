@@ -220,7 +220,10 @@ for(var modalCloseButton in modalCloseButtons) {
 
 //super annoying thing that runs on thoughts and prayers
 // basically only ever pass in a string "none" or "block"	(none = hide and block = show)
-function showOrHideDdrawOptions(noneOrBlock) {
+function showOrHideDdrawOptions(noneOrBlock) {	
+	// Only show ctrl+o note when 3dfx is selected
+	$(#3dfx-note).style.set({display: (noneOrBlock == "none" ? "block" : "none") });
+
 	// Don't forget the header
 	$(#ddraw-header).style.set({ display: noneOrBlock });
 
