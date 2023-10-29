@@ -33,7 +33,7 @@ if (storageRoot.lootfilters == null) {
 	storageRoot.lootfilters = {};
 }
 
-//unassorted variables
+// unassorted variables
 var body = $(body);
 var modalBackground = $(#modal-background);
 var optionsModal = $(#options-modal);
@@ -62,16 +62,16 @@ event keydown (e) {
 	}
 }
 
-// called when launcher is opened	justreally placing it on screen in not some stupid place and loading the checkbox's and radios
+// called when launcher is opened just really placing it on screen in not some stupid place and loading the checkbox's and radios
 self.ready = function() {
 	// connect to debugger
-	if( view.connectToInspector ) view.connectToInspector();
+	if (view.connectToInspector) view.connectToInspector();
 
 	// positioning the window in the middle of the screen:
 	var (sx,sy,sw,sh) = view.screenBox(#workarea,#rectw); // getting screen/monitor size
 	var (w,h) = (self.toPixels(750dip),self.toPixels(550dip))
 
-	view.move( sx + (sw - w) / 2, sy + (sh - h) / 2, w, h);
+	view.move(sx + (sw - w) / 2, sy + (sh - h) / 2, w, h);
 	stdout.printf("about to load options");
 	// Load saved options for checkbox's and radios
 	loadOptions();
@@ -91,17 +91,17 @@ self.on("click", "a[href^=http]", function(evt) {
 	return true; // consume the event
 });
 
-//handle clicking play button
+// handle clicking play button
 $(#play-button).onClick = function() {
 stdout.printf("ddrawOptions	play was selected");
-	//play button animation
+	// play button animation
 	playButton.attributes["disabled"] = true;
 	playButton.attributes.addClass("disabled");
 
 	// get lootfilter from storage
 	var filterOptions = storageRoot.lootfilters;
 
-	//set lootfilter to storage
+	// set lootfilter to storage
 	view.frame.setLootFilter(
 		filterOptions["selectedAuthor"],
 		filterOptions["selectedFilter"],
@@ -157,7 +157,7 @@ $(#options-button).onClick = function() {
 	}
 }
 
-//event watcher for clicking #width a ddraw option
+// event watcher for clicking #width a ddraw option
 $(#width).onMouse = function(evt) {
 	switch(evt.type) {
 		case Event.HANDLED | Event.MOUSE_DOWN: break; // handled mouse down event in bubbling phase
@@ -192,9 +192,9 @@ event change $(select.ddraw-select) {
 	}
 }
 
-//deal with clicking the lootfilters button under the options button
+// deal with clicking the lootfilters button under the options button
 $(#loot-filters-button).onClick = function() {
-	getLootFilterJsonList();		  
+	getLootFilterJsonList();
 }
 
 // deal with clicking the modal background
@@ -210,7 +210,7 @@ for(var modalCloseButton in modalCloseButtons) {
 	}
 }
 
-//super annoying thing that runs on thoughts and prayers
+// super annoying thing that runs on thoughts and prayers
 // basically only ever pass in a string "none" or "block"	(none = hide and block = show)
 function showOrHideDdrawOptions(noneOrBlock) {
 	// Don't forget the header
@@ -237,7 +237,7 @@ function showOrHideDdrawOptions(noneOrBlock) {
 	$(#show-advanced-btn).style.set({ display: noneOrBlock });
 }
 
-//deal with selecting the options page controls (radios and checkbox's)
+// deal with selecting the options page controls (radios and checkbox's)
 event change $(input.launcher-option) {
 	switch(this.attributes#type) {
 		case "checkbox":
@@ -277,7 +277,7 @@ event change $(input.ddraw, select.ddraw) {
 	}
 }
 
-//method for closing filters or options pages
+// method for closing filters or options pages
 function closeModals() {
 	modalBackground.attributes.removeClass("is-visible");
 	lootFilterLoaded = false;
@@ -306,7 +306,7 @@ function getLootFilterJsonList() {
 				jsonFilters.push({"author":"local", "url":"", "name":"local"});
 
 				// Add each loot filter to the list.
-				for (var d in data ) {
+				for (var d in data) {
 					jsonFilters.push(d);
 				}
 
@@ -322,7 +322,7 @@ function getLootFilterJsonList() {
 	}
 }
 
-//deal with opening the lootfilters page
+// deal with opening the lootfilters page
 function openLootFiltersModal() {
 	loadLootFilterAuthors();
 	modalBackground.attributes.addClass("is-visible");
