@@ -93,7 +93,8 @@ self.on("click", "a[href^=http]", function(evt) {
 
 // handle clicking play button
 $(#play-button).onClick = function() {
-stdout.printf("ddrawOptions	play was selected");
+	stdout.printf("ddrawOptions	play was selected");
+
 	// play button animation
 	playButton.attributes["disabled"] = true;
 	playButton.attributes.addClass("disabled");
