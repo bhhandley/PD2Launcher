@@ -255,6 +255,10 @@ sciter::value getDdrawIni() {
 	mINI::INIStructure ini;
 
 	file.read(ini);
+	if (ini.size() == 0) {
+		writeDefaultDdrawIni(file, ini);
+		file.read(ini);
+	}
 
 	for (auto const& it : ini)
 	{

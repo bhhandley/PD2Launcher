@@ -445,6 +445,7 @@ select {
 .option-header {
 	font-size: 16dip;
 	margin-bottom: 10dip;
+	margin-top: 20dip;
 }
 
 .option-container {
@@ -453,7 +454,6 @@ select {
 }
 
 .option-container span {
-	display: block;
 	font-size: 14dip;
 	margin-left: 25dip;
 	color: @GOLD_DARKER;
@@ -607,29 +607,15 @@ input[type=checkbox]:checked::after {
 	right: 5dip;
 }
 
-[title~=advancedCheck]:checked {
-	/* background-color: white !important; */
-}
-
-[title~=advancedCheck]:checked #checktest {
-	/* background-color: blue !important; */
-}
-
 .ddraw-adv-options {
-	display: none;
+	display: block;
 	width: auto;
 	height: 100%;
 }
 
-#ddraw-adv-trigger {
-	display: none;
-}
-
-#ddraw-adv-trigger:checked + .ddraw-adv-options {
-	display: block;
-}
-
 #show-advanced-btn {
+	font-weight: normal;
+	text-decoration: none;
 	border-bottom: 1px solid rgba(0,0,0,0.0);
 }
 
@@ -655,4 +641,12 @@ label.radio {
 .label-button:hover {
 	font-weight: bolder;
 	text-decoration: underline;
+}
+
+.note {
+	display: none;
+}
+
+#ddraw-options-container {
+	display: none;
 }

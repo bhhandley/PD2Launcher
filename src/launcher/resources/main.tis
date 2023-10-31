@@ -1,343 +1,185 @@
-﻿// the purpose of this function is to ensure that the database is properly initialized with the necessary default values 
-// for options and an empty lootfilters object, if they do not exist already.
-function initDb(storage) {
-	// Load saved options or use defaults
-	storage = {
-		options: {
-			playmode: "online",
-			renderer: "-3dfx",
-			skiptobnet: true,
-			sndbkg: false,
-		},
-		lootfilters: {},
-	};
-
-	return storage;
-}
-
-// Declare variables for storage and storageRoot
-var storage;
-var storageRoot;
+﻿// Globals and defaults
+var settings = null;
 var settingsFile = System.home("PD2Launcher.json");
+var defaultSettings = {
+	options: {
+		playmode: "online",
+		graphics: "3dfx",
+		skiptobnet: true,
+		sndbkg: false,
+		ddrawmode: "borderless",
+	},
+	lootfilters: {
+	},
+};
 
-// Open and load settings, fall back to defaults if missing
-try {
-	stdout.printf("opening storage");
-
-	// Read and parse launcher options settings file
-	var settings;
-	var file = Stream.openFile(settingsFile, "r");
-	if (file instanceof Stream) {
-		settings = parseData(file);
-		file.close();
-
-		// If we don't have an object from parsing the file, null it so defaults will be loaded
-		if (typeof settings == "object") {
-			if (!"options" in settings || !"lootfilters" in settings) {
-				storage = null;
-			} else {
-				storage = settings;
-			}
-		}
-	}
-
-	// Left over from old Storage method -- load settings "root" from the file or set defaults
-	storageRoot = storage || initDb(storage);
-
-	stdout.printf("storage created");
-} catch (e) {
-	//view.msgbox(#alert, e);
-	view.msgbox(#alert, "Failed to load settings. Your options/loot filters will not save. \nThis is normally a permissions issue and running as admin once typically fixes it.", "Settings failed to load.");
-}
-
-// Fixes update to latest version.
-if (storageRoot.lootfilters == null) {
-	storageRoot.lootfilters = {};
-}
-
-//unassorted variables
-var body = $(body);
+// UI elements, 
 var modalBackground = $(#modal-background);
 var optionsModal = $(#options-modal);
 var lootFilterModal = $(#loot-filter-modal);
 var playButton = $(#play-button);
-var news = $(#news);
-var jsonFilters = null;
+var optionsForm = $(#options-form);
+
 var lootFilterAuthors = $(#lootfilter-authors);
-var selectedLootFilterAuthor = "";
 var lootFilterList = $(#lootfilter-list);
 var lootFilterListHeader = $(#lootfilter-header);
+var savedLootFilterListLabel = $(#saved);
+
 var lootfilterListDictionary = {};
 var selectedLootFilter = {};
+var selectedLootFilterAuthor = "";
 var lootFilterLoaded = false;
-var savedLootFilterListLabel = $(#saved);
+
+var jsonFilters = null;
 var ddrawOptions = null;
 
-// handle pressing escape
-event keydown (e) {
-	if(e.keyCode == Event.VK_ESCAPE) {
-		if(modalBackground.attributes.hasClass("is-visible")) {
-			closeModals();
-		} else {
-			view.close();
-		}
-	}
-}
-
-// called when launcher is opened	justreally placing it on screen in not some stupid place and loading the checkbox's and radios
+// Form startup
 self.ready = function() {
 	// connect to debugger
-	if( view.connectToInspector ) view.connectToInspector();
+	if (view.connectToInspector)
+		view.connectToInspector();
 
 	// positioning the window in the middle of the screen:
 	var (sx,sy,sw,sh) = view.screenBox(#workarea,#rectw); // getting screen/monitor size
-	var (w,h) = (self.toPixels(750dip),self.toPixels(550dip))
+	var (w, h) = (self.toPixels(750dip), self.toPixels(550dip));
 
-	view.move( sx + (sw - w) / 2, sy + (sh - h) / 2, w, h);
-	stdout.printf("about to load options");
-	// Load saved options for checkbox's and radios
-	loadOptions();
-	stdout.printf("options loaded");
+	view.move(sx + (sw - w) / 2, sy + (sh - h) / 2, w, h);
+
+	// Load saved options	
+	loadSettingsFile();
+	loadDdrawSettingsFile();
+	setLoadedSettings();
 }
 
-// function that is used by cpp for updating the
-self.finish_update = function() {
-	delete playButton.attributes["disabled"];
-	playButton.attributes.removeClass("disabled");
+// Open and load setings from ddraw.ini
+function loadDdrawSettingsFile() {
+	ddrawOptions = view.frame.getDdrawOptions();
+	settings.options = Object.assign({}, settings.options, ddrawOptions);
 }
 
-// handle clicking href's
-self.on("click", "a[href^=http]", function(evt) {
-	var href = this.attributes["href"];
-	Sciter.launch(href); // will open the url in default browser
-	return true; // consume the event
-});
+// Open and load launcher settings
+function loadSettingsFile() {
+	try {
+		// Read and parse launcher options settings file
+		var jsonData;
+		var file = Stream.openFile(settingsFile, "r");
+		if (file instanceof Stream) {
+			jsonData = parseData(file);
+			file.close();
+		}
 
-//handle clicking play button
-$(#play-button).onClick = function() {
-	stdout.printf("ddrawOptions	play was selected");
-	
-	//play button animation
-	playButton.attributes["disabled"] = true;
-	playButton.attributes.addClass("disabled");
-
-	// get lootfilter from storage
-	var filterOptions = storageRoot.lootfilters;
-
-	//set lootfilter to storage
-	view.frame.setLootFilter(
-		filterOptions["selectedAuthor"],
-		filterOptions["selectedFilter"],
-		filterOptions["filterDownloadUrl"],
-		filterOptions["filterUrl"]
-	);
-
-	// send commandline args to game
-	stdout.printf("about to try to send args");
-
-	var args = getLaunchArguments();
-
-	switch (storageRoot.options.playmode) {
-		case "plugy":
-		case "plugy-modded":
-			view.frame.playPlugy(args)
-			break;
-
-		case "online":			
-		default:
-			view.frame.play(args);
-	}	
-}
-
-$(#set-windows-sec-button).onClick = function() {	
-	view.frame.setPD2WindowsSettings();
-}
-
-$(#rem-windows-sec-button).onClick = function() {	
-	view.frame.remPD2WindowsSettings();
-}
-
-$(#edit-plugyini-button).onClick = function() {
-	Sciter.launch("plugy.ini");
-}
-
-// open the options page and read storage for the radio buttons if one has never been selected by user to select 3dfx
-$(#options-button).onClick = function() {
-	modalBackground.attributes.addClass("is-visible");
-	optionsModal.attributes.addClass("is-visible");
-
-	// Check which radio button is selected and mark it as checked
-	if (storageRoot.options.renderer == "-3dfx") {
-		var radio3dfx = self.select("#3dfx");
-		radio3dfx.checked = true;
-		showOrHideDdrawOptions("none");
-	} else if (storageRoot.options.renderer == "-ddraw") {
-		var radioDdraw = self.select("#ddraw");
-		radioDdraw.checked = true;
-		showOrHideDdrawOptions("block");
-	} else {
-		var radio3dfx = self.select("#3dfx");
-		radio3dfx.checked = true;
-		showOrHideDdrawOptions("none");
-	}
-
-	// Mark the correct checkboxes and input values for ddrawOptions
-	var ddrawOptions = storageRoot.ddrawOptions;
-	for (var key in ddrawOptions) {
-		var value = ddrawOptions[key];
-		var element = self.select("input.ddraw[id='" + key + "'], select.ddraw-select[id='" + key + "']");
-		if (element) {
-			switch (element.attributes#type) {
-				case "checkbox":
-					element.checked = value;
-					break;
-				case "number":
-					element.value = value;
-					break;
-				case "dropdown":
-					element.value = value;
-					element.postEvent("change", element.value);
-					break;
-				default:
-					break
+		// Check to make sure we got a proper object with settings
+		if (typeof jsonData == "object") {
+			if ("options" in jsonData && "lootfilters" in jsonData) {
+				settings = jsonData;
 			}
 		}
+
+		// Keep the loaded settings or fallback to the defaults
+		settings = settings || defaultSettings;
+	} catch (e) {
+		view.msgbox(#alert, "Failed to load settings. Your options/loot filters will not save. \nThis is normally a permissions issue and running as admin once typically fixes it.", "Settings failed to load.");
 	}
 }
 
-//event watcher for clicking #width a ddraw option
-$(#width).onMouse = function(evt) {
-	switch(evt.type) {
-		case Event.HANDLED | Event.MOUSE_DOWN: break; // handled mouse down event in bubbling phase
-	}
-}
-
-// deal with changing the mode option
-event change $(select.ddraw-select) {
-	storageRoot.ddrawOptions.mode = this.value;
-	
-	// show or hide resolution options based on mode
-	if (this.value == "windowed") {
-		$(#resolution).style.set {display: "block"};
-	} else {
-		$(#resolution).style.set {display: "none"};
-	}
-}
-
-//deal with clicking the lootfilters button under the options button
-$(#loot-filters-button).onClick = function() {
-	getLootFilterJsonList();		  
-}
-
-// deal with clicking the modal background
-$(#modal-background).onClick = function() {
-	closeModals();
-}
-
-// deal with all the modal close buttons
-var modalCloseButtons = $$(.modal-close);
-for(var modalCloseButton in modalCloseButtons) {
-	modalCloseButton.onClick = function() {
-		closeModals();
-	}
-}
-
-//super annoying thing that runs on thoughts and prayers
-// basically only ever pass in a string "none" or "block"	(none = hide and block = show)
-function showOrHideDdrawOptions(noneOrBlock) {	
-	// Only show ctrl+o note when 3dfx is selected
-	$(#3dfx-note).style.set({display: (noneOrBlock == "none" ? "block" : "none") });
-
-	// Don't forget the header
-	$(#ddraw-header).style.set({ display: noneOrBlock });
-
-	// Loop through the options
-	for (var el in $$(#ddraw-options)) {
-		el.style.set({ display: noneOrBlock });
-	}
-
-	// and those ugly ass resolution options.... gross
-	if (noneOrBlock === "none") {
-		$(#resolution).style.set({ display: noneOrBlock });
-	} else {
-		// Make sure window selection is populating resolution
-		if ($(#mode).value == "windowed") {
-			$(#resolution).style.set({ display: "block" });
-		} else {
-			$(#resolution).style.set({ display: "none" });
+// Set the options 
+function setLoadedSettings() {
+	// Need to convert false values from checkboxes to undefined
+	var s = settings.options;
+	for (var o in s) {		
+		if (s[o] === false || s[o] === "false") {
+			s[o] = undefined;
 		}
 	}
 
-	// and that damn advanced options
-	$(#show-advanced-btn).style.set({ display: noneOrBlock });
+	// Set the initial values for the form, reset and send event to update the input values
+	optionsForm.value = s;
+	optionsForm.reset();
+	optionsForm.sendEvent("change");
 }
 
-//deal with selecting the options page controls (radios and checkbox's)
-event change $(input.launcher-option) {
-	switch(this.attributes#type) {
-		case "checkbox":
-			storageRoot.options[this.attributes#name] = this.checked;
-			break;
-		
-		case "radio":
-			if (this.checked) {
-				var value = this.attributes#value.toString();
-				var name = this.attributes#name.toString();
-
-				if (name === "renderer") {
-					storageRoot.options.renderer = value; // overwrite the renderer value
-				
-					if (value === "-3dfx") {
-						showOrHideDdrawOptions("none")
-					} else {
-						showOrHideDdrawOptions("block")
-					}
-				} else if (name === "playmode") {
-					storageRoot.options.playmode = value;
-				}
-			}
-			break;
-		
-		default:
-			break;
+// Write launcher options to json file
+function writeSettingsFile() {
+	// Remove ddraw options from launcher settings
+	var s = settings;
+	for (var k in ddrawOptions) {
+		if (k in s.options)
+			delete s.options[k];
 	}
-}
 
-// deal with changing the ddraw options
-event change $(input.ddraw, select.ddraw) {
-	switch (this.attributes#type) {
-		case "checkbox":
-			storageRoot.ddrawOptions[this.attributes#id] = this.checked;
-			break;
-		case "number":
-			storageRoot.ddrawOptions[this.attributes#id] = this.value;
-			break;
-		case "dropdown":
-			storageRoot.ddrawOptions[this.attributes#id || this.id] = this.value;
-			break;
-		default:
-			break;
-	}
-}
-
-//method for closing filters or options pages
-function closeModals() {
-	// Write launcher options to json file
 	try {
 		var file = Stream.openFile(settingsFile, "w");
-		file << JSON.stringify(storageRoot, null, 4) + "\n";
+		file << JSON.stringify(s, null, 4) + "\n";
 		file.close();
 	}
 	catch (e) {
 		//view.msgbox(#alert, e);
 		view.msgbox(#alert, "Failed to save settings. Your options/loot filters will not save. \nThis is normally a permissions issue and running as admin once typically fixes it.", "Settings failed to save.");
 	}
+}
+
+// Write ddraw settings to ddraw.ini
+function writeDdrawOptionsToIni() {
+	view.frame.setDdrawOptions(settings.options);
+}
+
+// Hide or show playmode notes on the option screen depending on selected setting
+function displayPlaymodeNotes() {
+	var online = (settings.options.playmode == "online");
+	var plugy = (settings.options.playmode == "plugy")
+	var plugymodded = (settings.options.playmode == "plugymodded");
+
+	$(#playmode-online-note).style.set({ display: (online ? "block" : "none") });
+	$(#playmode-plugy-note).style.set({ display: (plugy ? "block" : "none") });
+	$(#playmode-plugymodded-note).style.set({ display: (plugymodded ? "block" : "none") });
+}
+
+// Hide or show graphic mode notes on the option screen depending on selected setting
+function displayGraphicsNotes() {
+	var ddraw = (settings.graphics == "ddraw");
+
+	$(#3dfx-note).style.set({ display: (ddraw ? "none" : "block") });
+	$(#ddraw-note).style.set({ display: (ddraw ? "block" : "none") });	
+}
+
+// Update ddraw settings based on the selected mode
+function setDdrawmodeOptions() {
+	switch (settings.options.ddrawmode) {
+		case "fullscreen":
+			settings.options.fullscreen = true;
+			settings.options.windowed = false;
+			break;
+
+		case "borderless":
+			settings.options.fullscreen = true;
+			settings.options.windowed = true;
+			break;
+
+		case "windowed":
+			settings.options.fullscreen = false;
+			settings.options.windowed = true;
+			break;
+
+		default:
+	}
+
+	// Hide or show windowed mode settings if selected
+	$(#resolution).style.set { display: (settings.options.ddrawmode == "windowed") ? "block" : "none" };
+}
+
+// Hide or show ddraw options if selected
+function displayDdrawModeOptions() {
+	$(#ddraw-options-container).style.set({ display: (settings.options.graphics == "ddraw" ? "block" : "none") });
+}
+
+// Close options screens and save settings
+function closeModals() {
+	// Write launcher and ddraw settings to files
+	writeDdrawOptionsToIni();
+	writeSettingsFile();
 
 	modalBackground.attributes.removeClass("is-visible");
-	lootFilterLoaded = false;
-	
-	// Write the ddraw options to the ini file
-	writeDdrawOptionsToIni(storageRoot.ddrawOptions);
+	lootFilterLoaded = false;	
 
 	var modals = $$(.modal);
 	for (var modal in modals) {
@@ -345,7 +187,7 @@ function closeModals() {
 	}
 }
 
-// checks github list for community submitted loot filters
+// Fetch online loot filters
 function getLootFilterJsonList() {
 	// If the list has not been retrieved yet, fetch it using an HTTP request.
 	if (jsonFilters == null) {
@@ -376,7 +218,7 @@ function getLootFilterJsonList() {
 	}
 }
 
-//deal with opening the lootfilters page
+// Open loot filters screen
 function openLootFiltersModal() {
 	loadLootFilterAuthors();
 	modalBackground.attributes.addClass("is-visible");
@@ -422,7 +264,7 @@ function loadLootFilterAuthors() {
 			// If a loot filter is already selected in the storage, simulate a
 			// click on the corresponding author button to highlight it.
 			if (!lootFilterLoaded) {
-				if (item.author == storageRoot.lootfilters["selectedAuthor"]) {
+				if (item.author == settings.lootfilters["selectedAuthor"]) {
 					$(#{item.author}btn).postEvent("click");
 				}
 			}
@@ -545,10 +387,10 @@ function onLootFilterAuthorLoadComplete(author, filters) {
 				}
 						
 				btn.attributes.addClass("lootfilter-button-selected");
-				storageRoot.lootfilters["selectedAuthor"] = selectedLootFilterAuthor.author;
-				storageRoot.lootfilters["selectedFilter"] = selectedLootFilter.name;
-				storageRoot.lootfilters["filterDownloadUrl"] = selectedLootFilter.download_url;
-				storageRoot.lootfilters["filterUrl"] = selectedLootFilter.url;
+				settings.lootfilters["selectedAuthor"] = selectedLootFilterAuthor.author;
+				settings.lootfilters["selectedFilter"] = selectedLootFilter.name;
+				settings.lootfilters["filterDownloadUrl"] = selectedLootFilter.download_url;
+				settings.lootfilters["filterUrl"] = selectedLootFilter.url;
 
 				savedLootFilterListLabel.clear();
 
@@ -565,7 +407,7 @@ function onLootFilterAuthorLoadComplete(author, filters) {
 			});
 
 			if (!lootFilterLoaded) {
-				if (item.name == storageRoot.lootfilters["selectedFilter"]) {
+				if (item.name == settings.lootfilters["selectedFilter"]) {
 					$(#{name}btn).postEvent("click");
 				}
 			}
@@ -575,98 +417,29 @@ function onLootFilterAuthorLoadComplete(author, filters) {
 	}
 }
 
-function loadOptions() {
-	var options = storageRoot.options;
-	var hasRendererOption = false;
-	var hasPlaymodeOption = false;
-
-	if (!("ddrawOptions" in storageRoot)) {
-		storageRoot.ddrawOptions = createDdrawOptionsFallbackDefaults();
-		stdout.printf("ddrawOptions have been created?:	%s \n", storageRoot.ddrawOptions);
-	}
-
-	for(var key in options) {
-		var value = options[key];
-		var element = self.select("input.launcher-option[name='" + key + "']");
-		
-		// Skip elements that don't match a saved option
-		if(element == null) {
-			continue;
-		}
-		
-		if (element.attributes#type === "radio") {
-			hasRendererOption = true;
-		}
-
-		switch(element.attributes#type) {
-			case "checkbox":
-				element.checked = value;
-				break;
-
-			case "radio":
-				element = self.select("input.launcher-option[name='" + key + "'][value='" + value + "']");
-
-				if (element != null) {
-					element.checked = true;
-
-					if (key == "renderer") {
-						hasRendererOption = true;
-					} else if (key == "playmode") {
-						hasPlaymodeOption = true;
-					}
-				}
-		
-				break;
-
-			default:
-				element.attributes#value = value;
-		}
-	}
-
-	// This is here as a fallback to that if a user has not selected a renderer to selectone and update that to the storageRoot.
-	// We are doing this so if a user does a fresh install or is updating launcher from v1.5 or less it will add this defaulted selection to storage
-	if (!hasRendererOption) {
-		var element = self.select("input.launcher-option[name='renderer'][value='-3dfx']");
-		if (element != null) {
-			element.checked = true;
-			var value = element.attributes#value.toString();
-			storageRoot.options.renderer = value; // overwrite the renderer value
-		}
-	}
-  
-	if (!hasPlaymodeOption) {
-		var element = self.select("input.launcher-option[name='playmode'][value='online']");
-		if (element != null) {
-			element.checked = true;
-			var value = element.attributes#value.toString();
-			storageRoot.options.playmode = value; // overwrite the renderer value
-		}
-	}
-}
-
 // Returns a string of command-line arguments based on the state of the launcher options
 function getLaunchArguments() {
 	var args = [];
 
-	if (storageRoot.options.renderer === '-3dfx') {
-		args.push(storageRoot.options.renderer);
+	if (settings.options.graphics === '3dfx') {
+		args.push('-3dfx');
 	}
 
-	switch (storageRoot.options.playmode) {
-		case 'plugy-modded':
+	switch (settings.options.playmode) {
+		case 'plugymodded':
 			args.push('-direct');
 			args.push('-txt');
 
 		case 'plugy':
-			if (storageRoot.options.sndbkg)
+			if (settings.options.sndbkg)
 				args.push('-sndbkg');
 			break;
 			
 		case 'online':
-			if (storageRoot.options.skiptobnet)
+			if (settings.options.skiptobnet)
 				args.push('-skiptobnet');
 
-			if (storageRoot.options.sndbkg)
+			if (settings.options.sndbkg)
 				args.push('-sndbkg');
 			
 			break;
@@ -675,40 +448,125 @@ function getLaunchArguments() {
 	return args.join(" ");
 }
 
-function writeDdrawOptionsToIni(ddrawOptions) {
-	// Iterate over the properties in storageRoot.ddrawOptions
-	for (var key in storageRoot.ddrawOptions) {
-		var value = storageRoot.ddrawOptions[key];
-	}
-	
-	view.frame.setDdrawOptions(storageRoot.ddrawOptions);
+// Helper functions ------------------------------------
+function msg(data) {
+	view.msgbox(#information, data);
 }
 
-// if ddraw db is null fix that
-function createDdrawOptionsFallbackDefaults() {
-	return {
-		mode:"fullscreen",
-		width: 0,
-		height: 0,
-		posx: -32000,
-		posy: -32000,
-		maintas: false,
-		boxing: false,
-		vsync: false,
-		adjmouse: false,
-		devmode: false,
-		border: false,
-		resizeable: true,
-		noactivateapp: false,
-		handlemouse: true,
-		nonexclusive: false,
-		maxfps: "60",
-		maxgameticks: "-2",
-		savesettings: "1",
-		renderer2: "opengl",
-		hook: "4",
-		minfps: "0",
-		shader: "Shaders\\xbr\\xbr-lv2-noblend.glsl",
-		singlecpu: true
-	};
+function msgj(data) {
+	msg(JSON.stringify(data, null, 4));
 }
+// -----------------------------------------------------
+
+
+// Events ----------------------------------------------
+// Handle ESC key to close
+event keydown(e) {
+	if (e.keyCode == Event.VK_ESCAPE) {
+		if (modalBackground.attributes.hasClass("is-visible")) {
+			closeModals();
+		} else {
+			view.close();
+		}
+	}
+}
+
+// Used by main program to update the state of the play button
+self.finish_update = function () {
+	delete playButton.attributes["disabled"];
+	playButton.attributes.removeClass("disabled");
+}
+
+// Handle clicking url links
+event click $(a[href ^= http]) {
+	Sciter.launch(this.attributes["href"]);
+	return true;
+};
+
+// Play button
+event click $(#play-button) {
+	//play button animation
+	playButton.attributes["disabled"] = true;
+	playButton.attributes.addClass("disabled");
+
+	// get lootfilter from storage
+	var filterOptions = settings.lootfilters;
+
+	//set lootfilter to storage
+	view.frame.setLootFilter(
+		filterOptions["selectedAuthor"],
+		filterOptions["selectedFilter"],
+		filterOptions["filterDownloadUrl"],
+		filterOptions["filterUrl"]
+	);
+
+	var args = getLaunchArguments();
+
+	switch (settings.options.playmode) {
+		case "plugy":
+		case "plugymodded":
+			view.frame.playPlugy(args)
+			break;
+
+		case "online":
+		default:
+			view.frame.play(args);
+	}
+}
+
+// Main function to run exceptions powershell script
+event click $(#set-windows-sec-button) {
+	view.frame.setPD2WindowsSettings();
+}
+
+// Main function to run exceptions powershell script
+event click $(#rem-windows-sec-button) {
+	view.frame.remPD2WindowsSettings();
+}
+
+// Open plugy configuration
+event click $(#edit-plugyini-button) {
+	Sciter.launch("plugy.ini");
+}
+
+// Show options screen
+event click $(#options-button) {
+	modalBackground.attributes.addClass("is-visible");
+	optionsModal.attributes.addClass("is-visible");
+}
+
+// Download loot filters and open loot filters screen
+event click $(#loot-filters-button) {
+	getLootFilterJsonList();
+}
+
+// Close options screens when clicking outside of it
+event click $(#modal-background) {
+	closeModals();
+}
+
+// Handle close buttons on option screens
+event click $(.modal-close) {
+	closeModals();
+}
+
+// Handle input changes on the options screen
+event change $(form) {
+	// Convert form values so they are valid JSON types
+	var s = this.value;
+	for (var o in s) {
+		if (s[o] === undefined || s[o] === "false")
+			s[o] = false;
+
+		if (s[o] === "true")
+			s[o] = true;
+	}
+	settings.options = s;
+
+	// Update some conditional settings and UI elements
+	setDdrawmodeOptions();
+	displayPlaymodeNotes();
+	displayGraphicsNotes();
+	displayDdrawModeOptions();
+}
+// -----------------------------------------------------
