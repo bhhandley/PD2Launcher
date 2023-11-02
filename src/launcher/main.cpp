@@ -14,6 +14,10 @@
 #include "resources.cpp"
 #include "inihelper.h"
 #include <aux-cvt.h>
+#include <iostream>
+#include <string>
+#include <curl/curl.h>
+
 namespace fs = std::filesystem;
 
 
@@ -28,6 +32,7 @@ std::string lastFilterDownload = "";
 std::vector<std::string> dont_update = { "D2.LNG", "BnetLog.txt", "ProjectDiablo.cfg", "ddraw.ini", "default.filter", "loot.filter", "UI.ini", "d2gl.yaml" };
 std::vector<std::string> required_files = { "ddraw.ini", "default.filter", "loot.filter", "d2gl.yaml" };
 HANDLE pd2Mutex;
+
 
 void updateLauncher() {
 	nlohmann::json json = callJsonAPI(LAUNCHER_BUCKET);
@@ -311,6 +316,45 @@ void setDdrawIni(sciter::value ddrawoptions) {
 	return;
 }
 
+bool hasInternetConnection(bool showMessage = false) {
+	SetCursor(::LoadCursor(NULL, IDC_WAIT));
+
+	// Initialize the libcurl library.
+	curl_global_init(CURL_GLOBAL_DEFAULT);
+
+	// Create a CURL handle for making the HTTPS request.
+	CURL* curl = curl_easy_init();
+
+	if (curl) {
+		// Set the URL to a reliable website that is likely to be accessible.
+		curl_easy_setopt(curl, CURLOPT_URL, LAUNCHER_BUCKET.c_str());
+		curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10L);
+
+		// Set the request type to HEAD to minimize data transfer.
+		curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);
+
+		// Perform the HTTPS request.
+		CURLcode res = curl_easy_perform(curl);
+
+		// Clean up the CURL handle.
+		curl_easy_cleanup(curl);
+
+		// Clean up the libcurl library.
+		curl_global_cleanup();
+
+		// Check if the request was successful.
+		if (res == CURLE_OK) {
+			return true;
+		}
+	}
+
+	if (showMessage)
+		MessageBox(NULL, L"Can't connect to update servers, you can attempt to play however no updates to game or filters will be done.  Close and re-open the launcher once you have an active internet connection to get updates.", L"Check Interent Connection", MB_OK | MB_ICONERROR);
+
+	SetCursor(::LoadCursor(NULL, IDC_ARROW));
+	return false;
+}
+
 class frame : public sciter::window {
 public:
 	frame() : window(SW_MAIN) {}
@@ -325,13 +369,17 @@ public:
 			SOM_FUNC(getDdrawOptions),
 			SOM_FUNC(setDdrawOptions),
 			SOM_FUNC(remPD2WindowsSettings),
-			SOM_FUNC(setPD2WindowsSettings)
+			SOM_FUNC(setPD2WindowsSettings),
+			SOM_FUNC(hasInternet)
 		)
 	SOM_PASSPORT_END
 
-		bool _update(sciter::string args) {
+	bool _update(sciter::string args) {
 #ifndef _DEBUG
-		updateClientFiles();
+		if (hasInternetConnection()) {			
+			// Not bothering to show internet connection message since the game will show that anyways
+			updateClientFiles();
+		}
 #endif
 
 		this->call_function("self.finish_update");
@@ -413,6 +461,10 @@ public:
 		return true;
 	}
 
+	bool hasInternet(bool showMessage = false) {
+		return hasInternetConnection(showMessage);
+	}
+
 private:
 	std::vector<std::future<bool>> pending_futures;
 };
@@ -437,13 +489,15 @@ int uimain(std::function<int()> run) {
 	CLIENT_FILES_BUCKET = BETA_CLIENT_FILES_BUCKET;
 #endif
 
+	if (hasInternetConnection(true)) {
 #ifndef _DEBUG
-	updateLauncher();
+		updateLauncher();
 #endif
 
 #ifndef _DEBUG
-	downloadRequiredFiles();
+		downloadRequiredFiles();
 #endif
+	}
 
 	checkLootFilterFileStructure();
 
