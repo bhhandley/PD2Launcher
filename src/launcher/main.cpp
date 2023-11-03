@@ -33,6 +33,8 @@ std::vector<std::string> dont_update = { "D2.LNG", "BnetLog.txt", "ProjectDiablo
 std::vector<std::string> required_files = { "ddraw.ini", "default.filter", "loot.filter", "d2gl.yaml" };
 HANDLE pd2Mutex;
 
+bool hasInternetConnection = true;
+
 
 void updateLauncher() {
 	nlohmann::json json = callJsonAPI(LAUNCHER_BUCKET);
@@ -316,7 +318,7 @@ void setDdrawIni(sciter::value ddrawoptions) {
 	return;
 }
 
-bool hasInternetConnection(bool showMessage = false) {
+bool checkInternetConnection(bool showMessage = false) {
 	SetCursor(::LoadCursor(NULL, IDC_WAIT));
 
 	// Initialize the libcurl library.
@@ -352,6 +354,7 @@ bool hasInternetConnection(bool showMessage = false) {
 		MessageBox(NULL, L"Can't connect to update servers, you can attempt to play however no updates to game or filters will be done.  Close and re-open the launcher once you have an active internet connection to get updates.", L"Check Interent Connection", MB_OK | MB_ICONERROR);
 
 	SetCursor(::LoadCursor(NULL, IDC_ARROW));
+	hasInternetConnection = false;
 	return false;
 }
 
@@ -370,9 +373,13 @@ public:
 			SOM_FUNC(setDdrawOptions),
 			SOM_FUNC(remPD2WindowsSettings),
 			SOM_FUNC(setPD2WindowsSettings),
-			SOM_FUNC(hasInternet)
+			)
+		SOM_PROPS(
+			SOM_PROP(hasInternet)
 		)
-	SOM_PASSPORT_END
+		SOM_PASSPORT_END
+
+		bool hasInternet = hasInternetConnection;
 
 	bool _update(sciter::string args) {
 #ifndef _DEBUG
@@ -461,10 +468,6 @@ public:
 		return true;
 	}
 
-	bool hasInternet(bool showMessage = false) {
-		return hasInternetConnection(showMessage);
-	}
-
 private:
 	std::vector<std::future<bool>> pending_futures;
 };
@@ -489,7 +492,7 @@ int uimain(std::function<int()> run) {
 	CLIENT_FILES_BUCKET = BETA_CLIENT_FILES_BUCKET;
 #endif
 
-	if (hasInternetConnection(true)) {
+	if (checkInternetConnection(true)) {
 #ifndef _DEBUG
 		updateLauncher();
 #endif

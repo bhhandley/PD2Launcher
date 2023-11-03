@@ -650,3 +650,16 @@ label.radio {
 #ddraw-options-container {
 	display: none;
 }
+
+ul {
+	list-style-type: none;
+}
+
+li:hover {
+	background: rgb(40, 35, 26);
+}
+
+.author-selected, .filter-selected {
+	border: 2px solid rgb(135, 116, 88);
+	background: rgb(40, 35, 26);
+}

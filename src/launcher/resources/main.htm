@@ -108,7 +108,7 @@
 		</div>
 		<div class="modal-content">
 			<div id="playmode-options-container" class="option-container">
-			<h2 class="option-header">Play Mode</h2>
+			<h2 class="option-header">Game Mode</h2>
 				<label class="radio">
 					<input type="radio" name="playmode" id="online" value="online" class="launcher-option" />
 					Online/SP
@@ -153,13 +153,13 @@
 				<span id="3dfx-note" class="note">Updated D2GL graphics.  Use CTRL + O in-game for settings.</span>
 				<span id="ddraw-note" class="note">Older graphics.  Configure settings and features below.</span>
 			</div>
-			<h2 class="option-header">Sound</h2>
+			<h2 class="option-header">Launch Options</h2>
 			<div id="command-args-option" class="option-container">
 				<label class="checkbox"><input type="checkbox" id="sndbkg" name="sndbkg" value="true" class="launcher-option" /> Sound in Background (-sndbkg)</label>
-			</div>
-			<h2 class="option-header">Other</h2>
-			<div id="command-args-option" class="option-container">
+				<br/>
 				<label class="checkbox"><input type="checkbox" id="skiptobnet" name="skiptobnet" value="true" class="launcher-option" /> Skip To BattleNet (-skiptobnet)</label>
+				<br/>
+				<label class="checkbox"><input type="checkbox" id="closelauncher" name="closelauncher" value="true" class="launcher-option" /> Close Launcher on Play</label>
 			</div>
 			<h2 class="option-header">Windows Security</h2>
 			<div class="option-container">
@@ -419,9 +419,14 @@
 			</div>
 			<div class="lootfilter-container">
 				<div class="lootfilter-author-list" id="lootfilter-authors">
+					<ul id="authors-list">
+					</ul>
 				</div>
 				<div class="lootfilter-list-container">
-					<div class="lootfilter-list" id="lootfilter-list"></div>
+					<div class="lootfilter-list" id="lootfilter-list">
+						<ul id="filters-list">
+						</ul>
+					</div>
 				</div>
 			</div>
 		</div>

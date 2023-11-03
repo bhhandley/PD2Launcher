@@ -7,10 +7,11 @@ var defaultSettings = {
 		graphics: "3dfx",
 		skiptobnet: true,
 		sndbkg: false,
+		closelauncher: false,
 		ddrawmode: "borderless",
 	},
-	lootfilters: {
-		"selectedAuthor": "local",
+	lootfilter: {
+		"selectedAuthor": "Local",
 		"selectedFilter": "default.filter",
 		"filterDownloadUrl": "",
 		"filterUrl": ""
@@ -29,17 +30,19 @@ var lootFilterList = $(#lootfilter-list);
 var lootFilterListHeader = $(#lootfilter-header);
 var savedLootFilterListLabel = $(#saved);
 
-var jsonFilters = [{ "author": "local", "url": "", "name": "local" }];
-var lootfilterListDictionary = {};
-var selectedLootFilter = {};
-var selectedLootFilterAuthor = "";
-var lootFilterLoaded = false;
+var filterAuthors = { Local: { author: "Local", url: "", name: "Local Default and Custom Filters" } };
+var filterAuthorFilters = { Local: {} };
+var filterAuthorOrder = [];
+var filtersUpdating = false;
 
 var ddrawOptions = null;
 var plugyExists = false;
 
+var hasInternet = view.frame.hasInternet;
+
+
 // Form startup
-self.ready = function() {
+self.ready = async function() {
 	// connect to debugger
 	if (view.connectToInspector) {
 		view.connectToInspector();
@@ -53,26 +56,223 @@ self.ready = function() {
 	view.move(sx + (sw - w) / 2, sy + (sh - h) / 2, w, h);
 
 	// Load saved options
+	stdout.println("self.ready() :: loadSettingsFile()");
 	loadSettingsFile();
+
+	stdout.println("self.ready() :: loadDdrawSettingsFile()");
 	loadDdrawSettingsFile();
-	//getLootFilterJsonList(true); // Have to do this twice because of weird async issues as far as I can tell
-	stdout.println("FILTERS START");
-	const data = getLootFilterJsonList();
-	stdout.println("self.ready () :: data length = " + data.length);
-	stdout.println("FILTERS DONE");
-	
+
+	stdout.println("self.ready() :: setLoadedSettings()");
 	setLoadedSettings();
+
+	stdout.println("self.ready() :: checkForPlugy()");
 	checkForPlugy();
+
+	stdout.println("self.ready() :: getLootFilterList()");
+	await getLootFilterList();
+
+	stdout.println("self.ready() :: getLootFilterAuthorFilters()");
+	await getLootFilterAuthorFilters();
+
+	stdout.println("self.ready() :: loadLootFilterAuthors()");
+	loadLootFilterAuthors();
 }
 
-// Open and load setings from ddraw.ini
-function loadDdrawSettingsFile() {
-	ddrawOptions = view.frame.getDdrawOptions();
-	settings.options = Object.assign({}, settings.options, ddrawOptions);
+async function getRemoteTexts(url) {
+	try {
+		var text = await view.request { url: url, output: #json };
+		stdout.println("complete:", text);
+	} catch (e) {
+		stdout.println("got error:", e);
+	}
 }
 
-// Open and load launcher settings
+// Handle ESC key to close
+event keydown(e) {
+	if (e.keyCode == Event.VK_ESCAPE) {
+		if (modalBackground.attributes.hasClass("is-visible")) {
+			closeModals();
+		} else {
+			view.close();
+		}
+	}
+}
+
+// Used by main program to update the state of the play button
+self.finish_update = function () {
+	delete playButton.attributes["disabled"];
+	playButton.attributes.removeClass("disabled");
+}
+
+// Handle clicking url links
+event click $(a[href ^= http]) {
+	Sciter.launch(this.attributes["href"]);
+	return true;
+};
+
+// Play button
+event click $(#play-button) {
+	// Play button animation
+	playButton.attributes["disabled"] = true;
+	playButton.attributes.addClass("disabled");
+
+	// Send selected filter back to main to copy/download/whatever
+	view.frame.setLootFilter(
+		settings.lootfilter.filterOptions["selectedAuthor"],
+		settings.lootfilter.filterOptions["selectedFilter"],
+		settings.lootfilter.filterOptions["filterDownloadUrl"],
+		settings.lootfilter.filterOptions["filterUrl"]
+	);
+
+
+	// Run PlugY or standard game
+	var args = getLaunchArguments();
+	switch (settings.options.playmode) {
+		case "plugy":
+		case "plugymodded":
+			view.frame.playPlugy(args)
+			break;
+
+		case "online":
+		default:
+			view.frame.play(args);
+	}
+
+	if (settings.options.closelauncher) {
+		closeModals();
+		view.close();
+	}
+}
+
+// Main function to add exceptions powershell script
+event click $(#set-windows-sec-button) {
+	view.frame.setPD2WindowsSettings();
+}
+
+// Main function to remove exceptions powershell script
+event click $(#rem-windows-sec-button) {
+	view.frame.remPD2WindowsSettings();
+}
+
+// Open plugy configuration
+event click $(#edit-plugyini-button) {
+	Sciter.launch("plugy.ini");
+}
+
+// Show options screen
+event click $(#options-button) {
+	modalBackground.attributes.addClass("is-visible");
+	optionsModal.attributes.addClass("is-visible");
+}
+
+// Show loot filters screen if they're not still updating
+// Add some better visual feedback to the form.  Cursor icon and/or button state/image
+event click $(#loot-filters-button) {
+	stdout.println(" >>> Lootfilter Options >>> Updating: " + filtersUpdating);
+	if (!filtersUpdating) {
+		openLootFiltersModal();
+	}
+}
+
+// Close options screens when clicking outside of it
+event click $(#modal-background) {
+	closeModals();
+}
+
+// Handle close buttons on option screens
+event click $(.modal-close) {
+	closeModals();
+}
+
+// Handle input changes on the options screen
+event change $(form) {
+	// Convert form values so they are valid JSON types
+	var s = this.value;
+	for (var o in s) {
+		if (s[o] === undefined || s[o] === "false")
+			s[o] = false;
+
+		if (s[o] === "true")
+			s[o] = true;
+	}
+	settings.options = s;
+
+	// Update some conditional settings and UI elements
+	setDdrawmodeOptions();
+	displayPlaymodeNotes();
+	displayGraphicsNotes();
+	displayDdrawModeOptions();
+}
+
+// Event listener to handle clicking a loot filter
+event click $(.filter-item) {
+	stdout.println(this.id + " -> " + this.value + " onClick");
+
+	// Clear selection
+	for (var i in $$(.filter - item)) {
+		i.attributes.removeClass("filter-selected");
+	}
+
+	// Mark the currently selected filter
+	stdout.println(this.id + " -> " + this.value + " onClick :: SELECTED");
+	this.attributes.addClass("filter-selected");
+
+	// Update settings with selected filter info
+	var a = this.id.split("-")[2];
+	settings.lootfilter = {
+		selectedAuthor: a,
+		selectedFilter: this.value,
+		filterDownloadUrl: filterAuthorFilters[a][a + this.value].download_url,
+		filterUrl: filterAuthorFilters[a][a + this.value].url
+	}
+
+	stdout.println(this.id + " -> " + this.value + " onClick :: settings.lootfilter = " + settings.lootfilter);
+}
+
+// Event listener for selecting a loot filter author
+event click $(.author-item) {
+	stdout.println("#author-listitem-" + this.value + " onClick");
+
+	// Clear selection
+	for (var i in $$(.author-item)) {
+		i.attributes.removeClass("author-selected");
+	}
+
+	// Mark selected
+	stdout.println("#author-listitem-" + this.value + " onClick :: SELECTED");
+	this.attributes.addClass("author-selected");
+
+	// Add author name and link above the filter list
+	var filterAuthorInfo = filterAuthors[this.value];
+	var url = filterAuthorInfo.url;
+	if (this.value != "Local") {
+		var urlParts = url.split("/");
+		url = "https://github.com/" + urlParts.slice(4, 6).join("/");
+	}
+	lootFilterListHeader.clear();
+	lootFilterListHeader.$append(
+		<div>
+			<a href="{url}">&#128712; - {filterAuthorInfo.name}</a>
+		</div>
+	);
+
+	// Load the selected author's filters
+	loadLootFilterAuthorFilters(this.value);
+}
+
+// Hide options if plugy isn't found
+function checkForPlugy() {
+	var plugyExists = System.scanFiles("plugy.exe");
+	if (!plugyExists) {
+		$(form).value.playmode = "online";
+		$(#playmode-options-container).style.set({ display: "none" });
+	}
+}
+
+// Read and load launcher settings
 function loadSettingsFile() {
+	stdout.println("loadSettingsFile() :: Begin");
+
 	try {
 		// Read and parse launcher options settings file
 		var jsonData;
@@ -84,7 +284,7 @@ function loadSettingsFile() {
 
 		// Check to make sure we got a proper object with settings
 		if (typeof jsonData == "object") {
-			if ("options" in jsonData && "lootfilters" in jsonData) {
+			if ("options" in jsonData && "lootfilter" in jsonData) {
 				settings = jsonData;
 			}
 		}
@@ -94,9 +294,18 @@ function loadSettingsFile() {
 	} catch (e) {
 		view.msgbox(#alert, "Failed to load settings. Your options/loot filters will not save. \nThis is normally a permissions issue and running as admin once typically fixes it.", "Settings failed to load.");
 	}
+
+	stdout.println("loadSettingsFile() :: \n" + JSON.stringify(settings, null, 4));
+	stdout.println("loadSettingsFile() :: End");
 }
 
-// Set the options 
+// Open and merge ddraw.ini settings with launcher settings
+function loadDdrawSettingsFile() {
+	ddrawOptions = view.frame.getDdrawOptions();
+	settings.options = Object.assign({}, settings.options, ddrawOptions);
+}
+
+// Sets all of the options menu settings from the loaded settings
 function setLoadedSettings() {
 	// Need to convert false values from checkboxes to undefined
 	var s = settings.options;
@@ -106,7 +315,7 @@ function setLoadedSettings() {
 		}
 	}
 
-	// Set the initial values for the form, reset and send event to update the input values
+	// Set the initial values for the form, resets it update the elements and send event to handle changes
 	optionsForm.value = s;
 	optionsForm.reset();
 	optionsForm.sendEvent("change");
@@ -193,7 +402,6 @@ function closeModals() {
 	writeSettingsFile();
 
 	modalBackground.attributes.removeClass("is-visible");
-	lootFilterLoaded = false;	
 
 	var modals = $$(.modal);
 	for (var modal in modals) {
@@ -202,263 +410,193 @@ function closeModals() {
 }
 
 // Fetch online loot filters
-async function getLootFilterJsonList(suppressErrors = false) {
-	stdout.println("getLootFilterJsonList() :: Begin");
+async function getLootFilterList(suppressErrors = false) {
+	stdout.println("getLootFilterList() :: Begin");
 
-	// Try to fetch the list if only the local filters are loaded
-	if (jsonFilters.length == 1) {
+	if (hasInternet) {
+		filtersUpdating = true;		
 
-		const response = await fetch("https://raw.githubusercontent.com/Project-Diablo-2/LootFilters/main/filters.json");
-		const data = await response.json();
+		// data = (json, status) || false
+		var data = await awaitRequest("https://raw.githubusercontent.com/Project-Diablo-2/LootFilters/main/filters.json");
 
-		// If the list has not been retrieved yet, fetch it using an HTTP request.		
-		/*
-		await view.request({
-			url: "https://raw.githubusercontent.com/Project-Diablo-2/LootFilters/main/filters.json",
-			protocol: #basic,
-			output: #json,
-			noCache: false,
-			success: function (data, status) {
-				// Make sure the data is valid and add each loot filter to the list.
-				for (var d in data) {
-					if ("name" in d && "url" in d && "author" in d) {
-						jsonFilters.push(d);
-					}
-				}
-				if (!suppressErrors && data.length != jsonFilters.length - 1) {
-					view.msgbox(#alert, "The list of online filters contained invalid data or was missing.");
-				}
-				stdout.println("getLootFilterJsonList() :: Success Complete");
-				return true;
-			},
-			error: function (err, status) {
-				if (!suppressErrors) {
-					switch (err.message.replace("\n", "")) {
-						case "12029":
-							// No internet connection.  No need to display since a message would have been shown on launch anyways
-							break;
-
-						case "12157":
-							view.msgbox(#error, "TLS/SSL error.  Make sure TLS 1.2 is enabled in your Internet Options.");
-							break;
-
-						case "404":
-							view.msgbox(#error, "List of online filters not found.  Check that nothing is blocking your connection or try again later.");
-							break;
-
-						default:
-							alert(err);
-					}
+		// Make sure the data is valid and add each author to the lists.
+		if (data && data[1] == 200) {
+			for (var d in data[0]) {
+				if ("name" in d && "url" in d && "author" in d) {
+					filterAuthors[d.author] = d;
+					filterAuthorFilters[d.author] = {};
 				}
 			}
-		});
-		*/
-	}
+			if (data[0].length != filterAuthors.length - 1) {
+				stdout.println("getLootFilterList() :: Filter list mismatch.  Expected " + data[0].length + ", received " + filterAuthors.length - 1);
 
-	return data;
-	stdout.println("getLootFilterJsonList() :: End");
+				if (!suppressErrors) {
+					view.msgbox(#alert, "The list of online filters contained invalid data or was missing.");
+				}
+			}			
+		}
+
+		// Sort the list of authors and keep Local on top. 		
+		for (var a in filterAuthors) {
+			if (a == "Local") {
+				continue;
+			}
+			filterAuthorOrder.push(a);
+		}
+
+		// Case insensitive sort
+		filterAuthorOrder.sort(function (a, b) {
+			a = a[0].toLowerCase();
+			b = b[0].toLowerCase();
+			if (a == b) return 0;
+			return a < b ? -1 : 1;
+		});
+		filterAuthorOrder.unshift("Local");
+		
+		stdout.println("getLootFilterList() :: Loot filter list loaded");
+	}
+	stdout.println("getLootFilterList() :: End");
 }
 
 // Open loot filters screen
 function openLootFiltersModal() {
-	stdout.println("openLootFiltersModal() :: jsonFilters length = " + jsonFilters.length);
-	//getLootFilterJsonList()
-	loadLootFilterAuthors();
-
 	modalBackground.attributes.addClass("is-visible");
 	lootFilterModal.attributes.addClass("is-visible");
 }
 
-// Clears the current list of loot filter authors and generates a new list
-// based on the jsonFilters object. Also handles button clicks for selecting
-// a loot filter author and highlighting the selected author.
+// Add filter authors to the filter options screen
 function loadLootFilterAuthors() {
-	// Clear the current list of loot filter authors.
-	lootFilterAuthors.clear();
+	stdout.println("loadLootFilterAuthors() :: Start");
 
-	// Check if there are any loot filters available.
-	if (jsonFilters != null) {
-
-		for(var item in jsonFilters) {
-			// Add a new button to the list of loot filter authors.
-			lootFilterAuthors.$append(
-				<div id="{item.author}btn" class="author-button">
-					<span id="{item.author}btntext">{item.author}</span>
-				</div>
-			);
-
-			// Add a click event listener to the author button text
-			$(#{item.author}btntext).on("click", function(evt, btn) {
-				btn.parent.postEvent("click");
-			});
-
-			// Add a click event listener to the author button to select the
-			// loot filter author and highlight the selected author.
-			$(#{item.author}btn).on("click", function(evt, btn) {
-				var buttons = $$(.author-button);
-				for (var button in buttons) {
-					button.attributes.removeClass("author-button-selected");
-				}
-				
-				// select the corresponding loot filter author.
-				btn.attributes.addClass("author-button-selected");
-				selectLootFilterAuthor(btn.id.substr(0, btn.id.length - 3));
-			});
-
-			// If a loot filter is already selected in the storage, simulate a
-			// click on the corresponding author button to highlight it.
-			if (!lootFilterLoaded) {
-				if (item.author == settings.lootfilters["selectedAuthor"]) {
-					$(#{item.author}btn).sendEvent("click");
-				}
-			}
-		}
+	for (var author in filterAuthorOrder) {
+		stdout.println("loadLootFilterAuthors() :: " + author);		
+		$(#authors-list).$append(
+			<li id="author-listitem-{author}" value="{author}" class="author-item">{author}</li>
+		);
 	}
+
+	// If the selected filter author from the settings exists, select it
+	if (settings.lootfilter.selectedAuthor in filterAuthors) {
+		$(#author-listitem-{settings.lootfilter.selectedAuthor}).sendEvent("click");
+	}
+
+	stdout.println("loadLootFilterAuthors() :: End");
 }
 
-// Selects a loot filter author and retrieves their list of filters
-// author: the name of the author to select
-function selectLootFilterAuthor(author) {
-	
-	// Clear existing loot filter data
-	selectedLootFilterAuthor = null;
-	lootFilterList.clear();
-	lootFilterListHeader.clear();
+// Add author's filters to the filter options screen
+function loadLootFilterAuthorFilters(author) {
+	stdout.println("loadLootFilterAuthorFilters(" + author + ") :: Start");
 
-	// If an author is selected
-	if (author != null && author != "") {
-		// Get author object
-		for(var item in jsonFilters) {
-			if (item.author == author) {
-				selectedLootFilterAuthor = item;
-				break;
-			}
+	// Clear list of filters
+	$(#filters - list).clear();
+
+	for (var item in filterAuthorFilters[author]) {
+		var filter = filterAuthorFilters[author][item];
+
+		stdout.println("loadLootFilterAuthorFilters(" + author + ") :: " + filter.name);
+
+		// Add list item for each filter, mark one as selected if it exists
+		var classes = (author == settings.lootfilter.selectedAuthor && filter.name == settings.lootfilter.selectedFilter) ? "filter-item filter-selected" : "filter-item";
+		$(#filters-list).$append(
+			<li id="filter-listitem-{author}-{filter.name}" value="{filter.name}" class="{classes}">{filter.name}</li>
+		);
+	}
+
+	// Done updating filters
+	filtersUpdating = false;
+	stdout.println("loadLootFilterAuthorFilters(" + author + ") :: End");
+}
+
+// Gets list of filters for each author in the PD2 filters file.  Only does this once on startup.
+async function getLootFilterAuthorFilters() {
+	stdout.println("getLootFilterAuthorFilters() :: Begin");
+	stdout.println("getLootFilterAuthorFilters() :: Fetching filters for " + filterAuthorFilters.length + " authors");
+
+	// Get local filters
+	var localFiles = view.frame.getLocalFiles();
+	for (var f in localFiles) {
+		f = f + "";
+		if (f.indexOf(".filter") != -1) {
+			filterAuthorFilters["Local"]["Local" + f] = {
+				name: f,
+				url: System.home("filters/local/") + f,
+				download_url: System.home("filters/local/") + f
+			};
 		}
-		
-		// If the author is local
-		if (author.toLowerCase() == "local" && author.toLowerCase() != "localbtnt") {
-			var localFiles = view.frame.getLocalFiles();
-			var filters = [];
-			for (var item in localFiles) {
-				var f = item + "";
-				if (f.indexOf(".filter") != -1) {
-					filters.push({
-						"name": f,
-						"url": System.home("filters/local/") + f,
-						"download_url": System.home("filters/local/") + f
-					});
-				}
-			}
-			
-			// Cache and show the filters
-			lootfilterListDictionary[author] = filters;
-			onLootFilterAuthorLoadComplete(selectedLootFilterAuthor, filters);
-		} else {
-			if (lootfilterListDictionary[author] == null) {
-				// If the author has not been loaded before, look up their Git repository Lookup author git repo
-				if (selectedLootFilterAuthor != null && selectedLootFilterAuthor.url != null) {
-					view.request({
-					url: selectedLootFilterAuthor.url,
-					protocol: #basic,
-					output: #json,
-					noCache: false,
-					success: function(data, status) {
-						var filters = [];
-						for (var item in data) {
-							if (item.name.indexOf(".filter") != -1) {
-								filters.push(item);
-							}
+	}
+	stdout.println("getLootFilterAuthorFilters() :: " + filterAuthorFilters["Local"].length + " filters loaded for <Local>");
+
+	// Nothing to do if offline or only local filters are loaded
+	if (!hasInternet || filterAuthors.length == 1) {
+		filtersUpdating = false;
+
+		stdout.println("getLootFilterAuthorFilters() :: only local filters -> End");
+		return;
+	}
+
+	// Go through each author's filter list and store the info
+	for (var author in filterAuthors) {
+		var f = filterAuthors[author];
+		if (f.author == "Local") {
+			continue;
+		}
+		stdout.println("getLootFilterAuthorFilters() :: Fetching filters for " + f.author);
+		var data = await awaitRequest(f.url);
+
+		// Make sure we have a good return (status 200) and valid data
+		if (data && data[1] == 200) {
+			for (var d in data[0]) {
+				if ("name" in d && "url" in d && "download_url" in d) {
+					if (d.name.indexOf(".filter") != -1) {
+						if ("name" in d && "url" in d && "download_url" in d) {
+							filterAuthorFilters[f.author][f.author + d.name] = {
+								name: d.name,
+								url: d.url,
+								download_url: d.download_url
+							};
 						}
-
-						// Cache loaded loot filters to save data to github
-						lootfilterListDictionary[author] = filters;
-						// We have now loaded the loot filters, show them!
-						onLootFilterAuthorLoadComplete(selectedLootFilterAuthor, filters);
-					},
-					error:function(err, status) {
 					}
-				});
 				}
-			} else {
-				// // If the author has been loaded before, use the cached data
-				onLootFilterAuthorLoadComplete(selectedLootFilterAuthor, lootfilterListDictionary[author]);
 			}
 		}
+		stdout.println("getLootFilterAuthorFilters() :: " + filterAuthorFilters[f.author].length + " filters loaded for <" + f.author + ">");
 	}
+
+	filtersUpdating = false;
+	stdout.println("getLootFilterAuthorFilters() :: End");
 }
 
-// Handles the completion of loading loot filters for a selected author
-function onLootFilterAuthorLoadComplete(author, filters) {
-	var url = "https://github.com/Project-Diablo-2/LootFilters";
-	if (author.url) {
-		var repoStart = author.url.indexOf("/repos/") + 7;
-		var repo = author.url.substr(repoStart);
-		var reposEnd = repo.indexOf("/contents");
-		repo = repo.substr(0, reposEnd);
-		url = "https://github.com/" + repo;
-	}
+// Throwing every async/await at this thing to make it actually run synchronous
+async function awaitRequest(url, suppressError = false) {
+	try {
+		var text = await view.request { url: url, output: #json };
+		return text;
+	} catch (e) {
+		var msg = "";
+		switch (e.message.replace("\n", "")) {
+			case "12029":
+				msg = "No internet connection.";
+				break;
 
-	lootFilterListHeader.$append(
-		<div>
-			<a href="{url}">&#128712; - {author.name}</a>
-		</div>
-	);
+			case "12157":
+				msg = "TLS/SSL error.  Make sure TLS 1.2 is enabled in your Internet Options.";
+				break;
 
-	if (filters != null) {
-		for(var item in filters) {
-			var name = item.name.substr(0, item.name.indexOf(".filter"));
-			lootFilterList.$append(
-				<div id="{name}btn" class="lootfilter-button">
-					<span id="{name}btntext">{item.name}</span>
-				</div>
-			);
+			case "404":
+				msg = "List of online filters not found.  Check that nothing is blocking your connection or try again later.";
+				break;
 
-			$(#{name}btntext).on("click", function(evt, btn) {
-				btn.parent.postEvent("click");
-			});
-
-			$(#{name}btn).on("click", function(evt, btn) {
-				var buttons = $$(.lootfilter-button);
-				for (var button in buttons) {
-					button.attributes.removeClass("lootfilter-button-selected");
-				}
-
-				for (var f in lootfilterListDictionary[selectedLootFilterAuthor.author]) {
-					var filterName = f.name.substr(0, f.name.indexOf(".filter"));
-					if (filterName == btn.id.substr(0, btn.id.length - 3)) {
-						selectedLootFilter = f;
-					}
-				}
-						
-				btn.attributes.addClass("lootfilter-button-selected");
-				settings.lootfilters["selectedAuthor"] = selectedLootFilterAuthor.author;
-				settings.lootfilters["selectedFilter"] = selectedLootFilter.name;
-				settings.lootfilters["filterDownloadUrl"] = selectedLootFilter.download_url;
-				settings.lootfilters["filterUrl"] = selectedLootFilter.url;
-
-				savedLootFilterListLabel.clear();
-
-				if (lootFilterLoaded == true) {
-					savedLootFilterListLabel.$append(
-						<span>Config Saved</span>
-					);
-				}
-
-				savedLootFilterListLabel.timer(1000, function() {
-					savedLootFilterListLabel.clear();
-					return false;
-				});
-			});
-
-			if (!lootFilterLoaded) {
-				if (item.name == settings.lootfilters["selectedFilter"]) {
-					$(#{name}btn).postEvent("click");
-				}
-			}
+			default:
+				msg = e.message;
 		}
 
-		lootFilterLoaded = true;
+		if (!suppressError) {
+			view.msgbox(#error, msg, "Error - PD2Launcher");
+		}
+		stdout.println("checkRequestError() :: Error: " + e.name + " :: Message: " + e.message);
 	}
+
+	return false;
 }
 
 // Returns a string of command-line arguments based on the state of the launcher options
@@ -491,152 +629,3 @@ function getLaunchArguments() {
 
 	return args.join(" ");
 }
-
-function checkForPlugy() {
-	var plugyExists = System.scanFiles("plugy.exe");
-	if (!plugyExists) {
-		$(form).value.playmode = "online";
-		$(#playmode-options-container).style.set({ display: "none" });
-	}
-}
-// -----------------------------------------------------
-
-
-// Events ----------------------------------------------
-// Handle ESC key to close
-event keydown(e) {
-	if (e.keyCode == Event.VK_ESCAPE) {
-		if (modalBackground.attributes.hasClass("is-visible")) {
-			closeModals();
-		} else {
-			view.close();
-		}
-	}
-}
-
-// Used by main program to update the state of the play button
-self.finish_update = function () {
-	delete playButton.attributes["disabled"];
-	playButton.attributes.removeClass("disabled");
-}
-
-// Handle clicking url links
-event click $(a[href ^= http]) {
-	Sciter.launch(this.attributes["href"]);
-	return true;
-};
-
-// Play button
-event click $(#play-button) {
-	//play button animation
-	playButton.attributes["disabled"] = true;
-	playButton.attributes.addClass("disabled");
-
-	// get lootfilter from storage
-	var filterOptions = settings.lootfilters;
-
-	//set lootfilter to storage
-	view.frame.setLootFilter(
-		filterOptions["selectedAuthor"],
-		filterOptions["selectedFilter"],
-		filterOptions["filterDownloadUrl"],
-		filterOptions["filterUrl"]
-	);
-
-	var args = getLaunchArguments();
-
-	switch (settings.options.playmode) {
-		case "plugy":
-		case "plugymodded":
-			view.frame.playPlugy(args)
-			break;
-
-		case "online":
-		default:
-			view.frame.play(args);
-	}
-}
-
-// Main function to run exceptions powershell script
-event click $(#set-windows-sec-button) {
-	view.frame.setPD2WindowsSettings();
-}
-
-// Main function to run exceptions powershell script
-event click $(#rem-windows-sec-button) {
-	view.frame.remPD2WindowsSettings();
-}
-
-// Open plugy configuration
-event click $(#edit-plugyini-button) {
-	Sciter.launch("plugy.ini");
-}
-
-// Show options screen
-event click $(#options-button) {
-	modalBackground.attributes.addClass("is-visible");
-	optionsModal.attributes.addClass("is-visible");
-}
-
-// Download loot filters and open loot filters screen
-event click $(#loot-filters-button) {
-	openLootFiltersModal();
-}
-
-// Close options screens when clicking outside of it
-event click $(#modal-background) {
-	closeModals();
-}
-
-// Handle close buttons on option screens
-event click $(.modal-close) {
-	closeModals();
-}
-
-// Handle input changes on the options screen
-event change $(form) {
-	// Convert form values so they are valid JSON types
-	var s = this.value;
-	for (var o in s) {
-		if (s[o] === undefined || s[o] === "false")
-			s[o] = false;
-
-		if (s[o] === "true")
-			s[o] = true;
-	}
-	settings.options = s;
-
-	// Update some conditional settings and UI elements
-	setDdrawmodeOptions();
-	displayPlaymodeNotes();
-	displayGraphicsNotes();
-	displayDdrawModeOptions();
-}
-// -----------------------------------------------------
-
-
-
-
-
-
-/*
-
-	Form Load
-	Load Configs
-	Get Loot Filters
-	Load Loot Filter Data
-	Add filters
-		Add click events to left pane
-		
-	"Click" selected filter from configs if exists
-	
-	Click author event
-		Highlight author
-		Clear/add filters from author in right pane
-
-	Click filter event
-		Highlight filter
-		Update settings with filter info
-
-
-*/
