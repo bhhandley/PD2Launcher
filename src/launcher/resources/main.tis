@@ -505,6 +505,7 @@ function loadLootFilterAuthors() {
 	stdout.println("loadLootFilterAuthors() :: Start");
 
 	$(#authors-list).clear();
+	$(#filters-list).clear();
 	for (var author in filterAuthorOrder) {
 		stdout.println("loadLootFilterAuthors() :: " + author);		
 		$(#authors-list).$append(
