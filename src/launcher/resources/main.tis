@@ -1,4 +1,4 @@
-﻿// Globals and defaults
+﻿// Settings and defaults
 var settings = null;
 var settingsFile = System.home("PD2Launcher.json");
 var defaultSettings = {
@@ -17,6 +17,8 @@ var defaultSettings = {
 		"filterUrl": ""
 	},
 };
+var ddrawOptions = null;
+var plugyExists = false;
 
 
 // UI elements, 
@@ -30,19 +32,21 @@ var lootFilterList = $(#lootfilter-list);
 var lootFilterListHeader = $(#lootfilter-header);
 var savedLootFilterListLabel = $(#saved);
 
-var filterAuthors = { Local: { author: "Local", url: "", name: "Local Default and Custom Filters" } };
-var filterAuthorFilters = { Local: {} };
+// Item filter info
+var filterAuthors = {};
+var filterAuthorFilters = {};
 var filterAuthorOrder = [];
 var filtersUpdating = false;
 
-var ddrawOptions = null;
-var plugyExists = false;
-
+// Internet status passed up from Main app
 var hasInternet = view.frame.hasInternet;
 
 
-// Form startup
-self.ready = async function() {
+
+
+
+// ------------ Form Startup ------------ //
+self.ready = function() {
 	// connect to debugger
 	if (view.connectToInspector) {
 		view.connectToInspector();
@@ -68,24 +72,12 @@ self.ready = async function() {
 	stdout.println("self.ready() :: checkForPlugy()");
 	checkForPlugy();
 
-	stdout.println("self.ready() :: getLootFilterList()");
-	await getLootFilterList();
-
-	stdout.println("self.ready() :: getLootFilterAuthorFilters()");
-	await getLootFilterAuthorFilters();
-
-	stdout.println("self.ready() :: loadLootFilterAuthors()");
-	loadLootFilterAuthors();
+	stdout.println("self.ready() :: refreshFilters()");
+	refreshFilters();
 }
 
-async function getRemoteTexts(url) {
-	try {
-		var text = await view.request { url: url, output: #json };
-		stdout.println("complete:", text);
-	} catch (e) {
-		stdout.println("got error:", e);
-	}
-}
+
+// ------------ Event Handlers ------------ //
 
 // Handle ESC key to close
 event keydown(e) {
@@ -168,7 +160,6 @@ event click $(#options-button) {
 // Show loot filters screen if they're not still updating
 // Add some better visual feedback to the form.  Cursor icon and/or button state/image
 event click $(#loot-filters-button) {
-	stdout.println(" >>> Lootfilter Options >>> Updating: " + filtersUpdating);
 	if (!filtersUpdating) {
 		openLootFiltersModal();
 	}
@@ -208,6 +199,10 @@ event change $(form) {
 event click $(.filter-item) {
 	stdout.println(this.id + " -> " + this.value + " onClick");
 
+	if (filtersUpdating) {
+		stdout.println(this.id + " -> " + this.value + " onClick :: Filters updating - Exiting");
+		return;
+	}
 	// Clear selection
 	for (var i in $$(.filter-item)) {
 		i.attributes.removeClass("filter-selected");
@@ -233,6 +228,10 @@ event click $(.filter-item) {
 event click $(.author-item) {
 	stdout.println("#author-listitem-" + this.value + " onClick");
 
+	if (filtersUpdating) {
+		stdout.println(this.id + " -> " + this.value + " onClick :: Filters updating - Exiting");
+		return;
+	}
 	// Clear selection
 	for (var i in $$(.author-item)) {
 		i.attributes.removeClass("author-selected");
@@ -259,6 +258,40 @@ event click $(.author-item) {
 	// Load the selected author's filters
 	loadLootFilterAuthorFilters(this.value);
 }
+
+// Event to handle refresh filters button
+event click $(#refresh-filters-button) {
+	stdout.println("#refresh-filters-button :: Begin");
+	
+	refreshFilters();
+
+	stdout.println("#refresh-filters-button :: End");
+}
+
+
+// ------------ Functions ------------ //
+
+// Downloads filter data and loads it
+async function refreshFilters() {
+	stdout.println("refreshFilters() :: Begin");
+
+	setFiltersUpdating(true);
+
+	filterAuthors = { Local: { author: "Local", url: "", name: "Local Default and Custom Filters" } };
+	filterAuthorFilters = { Local: {} };
+	filterAuthorOrder = [];
+
+	await getLootFilterList();
+	await getLootFilterAuthorFilters();
+
+	setFiltersUpdating(false);
+
+	loadLootFilterAuthors();
+	
+
+	stdout.println("refreshFilters() :: End");
+}
+
 
 // Hide options if plugy isn't found
 function checkForPlugy() {
@@ -420,8 +453,6 @@ async function getLootFilterList(suppressErrors = false) {
 		return;
 	}
 
-	filtersUpdating = true;		
-
 	// data = (json, status) || false
 	var data = await awaitRequest("https://raw.githubusercontent.com/Project-Diablo-2/LootFilters/main/filters.json");
 
@@ -473,6 +504,7 @@ function openLootFiltersModal() {
 function loadLootFilterAuthors() {
 	stdout.println("loadLootFilterAuthors() :: Start");
 
+	$(#authors-list).clear();
 	for (var author in filterAuthorOrder) {
 		stdout.println("loadLootFilterAuthors() :: " + author);		
 		$(#authors-list).$append(
@@ -508,8 +540,21 @@ function loadLootFilterAuthorFilters(author) {
 	}
 
 	// Done updating filters
-	filtersUpdating = false;
 	stdout.println("loadLootFilterAuthorFilters(" + author + ") :: End");
+}
+
+// Provides visual feedback when updating and sets global var for other checks
+function setFiltersUpdating(updating) {
+	stdout.println("setFiltersUpdating(" + updating + ") :: Begin");
+
+	filtersUpdating = updating;
+	if (updating) {
+		$(body).attributes.addClass("wait");
+	} else {
+		$(body).attributes.removeClass("wait");
+	}
+
+	stdout.println("setFiltersUpdating(" + updating + ") :: End");
 }
 
 // Gets list of filters for each author in the PD2 filters file.  Only does this once on startup.
@@ -533,8 +578,6 @@ async function getLootFilterAuthorFilters() {
 
 	// Nothing to do if offline or only local filters are loaded
 	if (!hasInternet || filterAuthors.length == 1) {
-		filtersUpdating = false;
-
 		stdout.println("getLootFilterAuthorFilters() :: only local filters -> End");
 		return;
 	}
@@ -567,7 +610,6 @@ async function getLootFilterAuthorFilters() {
 		stdout.println("getLootFilterAuthorFilters() :: " + filterAuthorFilters[f.author].length + " filters loaded for <" + f.author + ">");
 	}
 
-	filtersUpdating = false;
 	stdout.println("getLootFilterAuthorFilters() :: End");
 }
 
