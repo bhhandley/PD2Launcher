@@ -209,7 +209,7 @@ event click $(.filter-item) {
 	stdout.println(this.id + " -> " + this.value + " onClick");
 
 	// Clear selection
-	for (var i in $$(.filter - item)) {
+	for (var i in $$(.filter-item)) {
 		i.attributes.removeClass("filter-selected");
 	}
 
@@ -413,48 +413,53 @@ function closeModals() {
 async function getLootFilterList(suppressErrors = false) {
 	stdout.println("getLootFilterList() :: Begin");
 
-	if (hasInternet) {
-		filtersUpdating = true;		
-
-		// data = (json, status) || false
-		var data = await awaitRequest("https://raw.githubusercontent.com/Project-Diablo-2/LootFilters/main/filters.json");
-
-		// Make sure the data is valid and add each author to the lists.
-		if (data && data[1] == 200) {
-			for (var d in data[0]) {
-				if ("name" in d && "url" in d && "author" in d) {
-					filterAuthors[d.author] = d;
-					filterAuthorFilters[d.author] = {};
-				}
-			}
-			if (data[0].length != filterAuthors.length - 1) {
-				stdout.println("getLootFilterList() :: Filter list mismatch.  Expected " + data[0].length + ", received " + filterAuthors.length - 1);
-
-				if (!suppressErrors) {
-					view.msgbox(#alert, "The list of online filters contained invalid data or was missing.");
-				}
-			}			
-		}
-
-		// Sort the list of authors and keep Local on top. 		
-		for (var a in filterAuthors) {
-			if (a == "Local") {
-				continue;
-			}
-			filterAuthorOrder.push(a);
-		}
-
-		// Case insensitive sort
-		filterAuthorOrder.sort(function (a, b) {
-			a = a[0].toLowerCase();
-			b = b[0].toLowerCase();
-			if (a == b) return 0;
-			return a < b ? -1 : 1;
-		});
-		filterAuthorOrder.unshift("Local");
-		
-		stdout.println("getLootFilterList() :: Loot filter list loaded");
+	if (!hasInternet) {
+		filterAuthorOrder.push("Local");
+		stdout.println("getLootFilterList() :: Offline, nothing to do");
+		stdout.println("getLootFilterList() :: End");
+		return;
 	}
+
+	filtersUpdating = true;		
+
+	// data = (json, status) || false
+	var data = await awaitRequest("https://raw.githubusercontent.com/Project-Diablo-2/LootFilters/main/filters.json");
+
+	// Make sure the data is valid and add each author to the lists.
+	if (data && data[1] == 200) {
+		for (var d in data[0]) {
+			if ("name" in d && "url" in d && "author" in d) {
+				filterAuthors[d.author] = d;
+				filterAuthorFilters[d.author] = {};
+			}
+		}
+		if (data[0].length != filterAuthors.length - 1) {
+			stdout.println("getLootFilterList() :: Filter list mismatch.  Expected " + data[0].length + ", received " + filterAuthors.length - 1);
+
+			if (!suppressErrors) {
+				view.msgbox(#alert, "The list of online filters contained invalid data or was missing.");
+			}
+		}			
+	}
+
+	// Sort the list of authors and keep Local on top. 		
+	for (var a in filterAuthors) {
+		if (a == "Local") {
+			continue;
+		}
+		filterAuthorOrder.push(a);
+	}
+
+	// Case insensitive sort
+	filterAuthorOrder.sort(function (a, b) {
+		a = a[0].toLowerCase();
+		b = b[0].toLowerCase();
+		if (a == b) return 0;
+		return a < b ? -1 : 1;
+	});
+	filterAuthorOrder.unshift("Local");
+		
+	stdout.println("getLootFilterList() :: Loot filter list loaded");
 	stdout.println("getLootFilterList() :: End");
 }
 
@@ -488,7 +493,7 @@ function loadLootFilterAuthorFilters(author) {
 	stdout.println("loadLootFilterAuthorFilters(" + author + ") :: Start");
 
 	// Clear list of filters
-	$(#filters - list).clear();
+	$(#filters-list).clear();
 
 	for (var item in filterAuthorFilters[author]) {
 		var filter = filterAuthorFilters[author][item];
