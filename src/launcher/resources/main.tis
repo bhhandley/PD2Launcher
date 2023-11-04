@@ -11,10 +11,10 @@ var defaultSettings = {
 		ddrawmode: "borderless",
 	},
 	lootfilter: {
-		"selectedAuthor": "Local",
-		"selectedFilter": "default.filter",
-		"filterDownloadUrl": "",
-		"filterUrl": ""
+		selectedAuthor: "Local",
+		selectedFilter: "default.filter",
+		filterDownloadUrl: "",
+		filterUrl: ""
 	},
 };
 var ddrawOptions = null;
@@ -110,10 +110,10 @@ event click $(#play-button) {
 
 	// Send selected filter back to main to copy/download/whatever
 	view.frame.setLootFilter(
-		settings.lootfilter.filterOptions["selectedAuthor"],
-		settings.lootfilter.filterOptions["selectedFilter"],
-		settings.lootfilter.filterOptions["filterDownloadUrl"],
-		settings.lootfilter.filterOptions["filterUrl"]
+		settings.lootfilter.selectedAuthor,
+		settings.lootfilter.selectedFilter,
+		settings.lootfilter.filterDownloadUrl,
+		settings.lootfilter.filterUrl
 	);
 
 
