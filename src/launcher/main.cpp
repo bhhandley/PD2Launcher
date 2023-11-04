@@ -351,7 +351,7 @@ bool checkInternetConnection(bool showMessage = false) {
 	}
 
 	if (showMessage)
-		MessageBox(NULL, L"Can't connect to update servers, you can attempt to play however no updates to game or filters will be done.  Close and re-open the launcher once you have an active internet connection to get updates.", L"Check Interent Connection", MB_OK | MB_ICONERROR);
+		MessageBox(NULL, L"Can't connect to update servers, you can still attempt to play however the launcher won't be updated and updates the game or filters may not work.", L"Check Interent Connection", MB_OK | MB_ICONERROR);
 
 	SetCursor(::LoadCursor(NULL, IDC_ARROW));
 	hasInternetConnection = false;
@@ -383,7 +383,7 @@ public:
 
 	bool _update(sciter::string args) {
 #ifndef _DEBUG
-		if (hasInternetConnection()) {			
+		if (checkInternetConnection()) {			
 			// Not bothering to show internet connection message since the game will show that anyways
 			updateClientFiles();
 		}
