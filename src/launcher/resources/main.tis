@@ -1,4 +1,5 @@
 ﻿// Settings and defaults
+var debugLogFile = System.home("PD2Launcher_Debug.log");
 var settings = null;
 var settingsFile = System.home("PD2Launcher.json");
 var defaultSettings = {
@@ -42,15 +43,14 @@ var filtersUpdating = false;
 var hasInternet = view.frame.hasInternet;
 
 
-
-
-
 // ------------ Form Startup ------------ //
-self.ready = function() {
+self.ready = function () {
+	// Init debug file
+	printDebug("self.ready() :: Begin", true);
+
 	// connect to debugger
 	if (view.connectToInspector) {
-		view.connectToInspector();
-		stdout.println("\n\n\n--------------- STARTUP --------------\n\n\n");
+		view.connectToInspector();		
 	}
 
 	// positioning the window in the middle of the screen:
@@ -60,20 +60,13 @@ self.ready = function() {
 	view.move(sx + (sw - w) / 2, sy + (sh - h) / 2, w, h);
 
 	// Load saved options
-	stdout.println("self.ready() :: loadSettingsFile()");
 	loadSettingsFile();
-
-	stdout.println("self.ready() :: loadDdrawSettingsFile()");
 	loadDdrawSettingsFile();
-
-	stdout.println("self.ready() :: setLoadedSettings()");
 	setLoadedSettings();
-
-	stdout.println("self.ready() :: checkForPlugy()");
 	checkForPlugy();
-
-	stdout.println("self.ready() :: refreshFilters()");
 	refreshFilters();
+
+	printDebug("self.ready() :: End");
 }
 
 
@@ -104,10 +97,13 @@ event click $(a[href ^= http]) {
 
 // Play button
 event click $(#play-button) {
+	printDebug("#" + this.id + " :: Begin");
+
 	// Play button animation
 	playButton.attributes["disabled"] = true;
 	playButton.attributes.addClass("disabled");
 
+	printDebug(JSON.stringify(settings.lootfilter, null, 4));
 	// Send selected filter back to main to copy/download/whatever
 	view.frame.setLootFilter(
 		settings.lootfilter.selectedAuthor,
@@ -119,6 +115,7 @@ event click $(#play-button) {
 
 	// Run PlugY or standard game
 	var args = getLaunchArguments();
+	printDebug("\tplaymode = '" + settings.options.playmode + "' args = '" + args + "'");
 	switch (settings.options.playmode) {
 		case "plugy":
 		case "plugymodded":
@@ -132,8 +129,9 @@ event click $(#play-button) {
 
 	if (settings.options.closelauncher) {
 		closeModals();
-		view.close();
 	}
+
+	printDebug("#" + this.id + " :: End");
 }
 
 // Main function to add exceptions powershell script
@@ -197,10 +195,11 @@ event change $(form) {
 
 // Event listener to handle clicking a loot filter
 event click $(.filter-item) {
-	stdout.println(this.id + " -> " + this.value + " onClick");
+	printDebug("#" + this.id + ".onClick() -> " + this.value + " :: Begin");
 
 	if (filtersUpdating) {
-		stdout.println(this.id + " -> " + this.value + " onClick :: Filters updating - Exiting");
+		printDebug("\tFilters updating - Exiting");
+		printDebug("#" + this.id + " -> " + this.value + " onClick :: Filters updating - Exiting");
 		return;
 	}
 	// Clear selection
@@ -209,7 +208,7 @@ event click $(.filter-item) {
 	}
 
 	// Mark the currently selected filter
-	stdout.println(this.id + " -> " + this.value + " onClick :: SELECTED");
+	printDebug("#" + this.id + " -> " + this.value + " onClick :: SELECTED");
 	this.attributes.addClass("filter-selected");
 
 	// Update settings with selected filter info
@@ -221,15 +220,17 @@ event click $(.filter-item) {
 		filterUrl: filterAuthorFilters[a][a + this.value].url
 	}
 
-	stdout.println(this.id + " -> " + this.value + " onClick :: settings.lootfilter = " + settings.lootfilter);
+	printDebug(JSON.stringify(settings.lootfilter, null, 4));
+	printDebug("#" + this.id + ".onClick() -> " + this.value + " :: End");
 }
 
 // Event listener for selecting a loot filter author
 event click $(.author-item) {
-	stdout.println("#author-listitem-" + this.value + " onClick");
+	printDebug("#" + this.id + ".onClick() -> " + this.value + ":: Begin");
 
 	if (filtersUpdating) {
-		stdout.println(this.id + " -> " + this.value + " onClick :: Filters updating - Exiting");
+		printDebug("\t Filters updating - Exiting");
+		printDebug("#" + this.id + ".onClick() -> " + this.value + ":: End");
 		return;
 	}
 	// Clear selection
@@ -238,7 +239,7 @@ event click $(.author-item) {
 	}
 
 	// Mark selected
-	stdout.println("#author-listitem-" + this.value + " onClick :: SELECTED");
+	printDebug("\t" + this.value + " :: SELECTED");
 	this.attributes.addClass("author-selected");
 
 	// Add author name and link above the filter list
@@ -257,15 +258,17 @@ event click $(.author-item) {
 
 	// Load the selected author's filters
 	loadLootFilterAuthorFilters(this.value);
+
+	printDebug("#" + this.id + ".onClick() -> " + this.value + ":: End");
 }
 
 // Event to handle refresh filters button
 event click $(#refresh-filters-button) {
-	stdout.println("#refresh-filters-button :: Begin");
+	printDebug("#" + this.id + ".onClick() :: Begin");
 	
 	refreshFilters();
 
-	stdout.println("#refresh-filters-button :: End");
+	printDebug("#" + this.id + ".onClick() :: Begin");
 }
 
 
@@ -273,7 +276,7 @@ event click $(#refresh-filters-button) {
 
 // Downloads filter data and loads it
 async function refreshFilters() {
-	stdout.println("refreshFilters() :: Begin");
+	printDebug("refreshFilters() :: Begin");
 
 	setFiltersUpdating(true);
 
@@ -285,11 +288,9 @@ async function refreshFilters() {
 	await getLootFilterAuthorFilters();
 
 	setFiltersUpdating(false);
-
 	loadLootFilterAuthors();
 	
-
-	stdout.println("refreshFilters() :: End");
+	printDebug("refreshFilters() :: End");
 }
 
 
@@ -304,7 +305,7 @@ function checkForPlugy() {
 
 // Read and load launcher settings
 function loadSettingsFile() {
-	stdout.println("loadSettingsFile() :: Begin");
+	printDebug("loadSettingsFile() :: Begin");
 
 	try {
 		// Read and parse launcher options settings file
@@ -328,22 +329,31 @@ function loadSettingsFile() {
 		view.msgbox(#alert, "Failed to load settings. Your options/loot filters will not save. \nThis is normally a permissions issue and running as admin once typically fixes it.", "Settings failed to load.");
 	}
 
-	stdout.println("loadSettingsFile() :: \n" + JSON.stringify(settings, null, 4));
-	stdout.println("loadSettingsFile() :: End");
+	printDebug("loadSettingsFile() :: \n" + JSON.stringify(settings, null, 4));
+	printDebug("loadSettingsFile() :: End");
 }
 
 // Open and merge ddraw.ini settings with launcher settings
 function loadDdrawSettingsFile() {
+	printDebug("loadDdrawSetttingsFile() :: Begin");
+
 	ddrawOptions = view.frame.getDdrawOptions();
 	settings.options = Object.assign({}, settings.options, ddrawOptions);
+	printDebug("ddrawOptions = " + JSON.stringify(ddrawOptions, null, 4));
+
+	printDebug("loadDdrawSetttingsFile() :: End");
 }
 
 // Sets all of the options menu settings from the loaded settings
 function setLoadedSettings() {
+	printDebug("setLoadedSettings() :: Begin");
+
 	// Need to convert false values from checkboxes to undefined
 	var s = settings.options;
 	for (var o in s) {		
+		printDebug("\t" + o + " = " + s[o]);
 		if (s[o] === false || s[o] === "false") {
+			printDebug("\t\t" + s[o] + " -> undefined");
 			s[o] = undefined;
 		}
 	}
@@ -352,16 +362,22 @@ function setLoadedSettings() {
 	optionsForm.value = s;
 	optionsForm.reset();
 	optionsForm.sendEvent("change");
+
+	printDebug("setLoadedSettings() :: End");
 }
 
 // Write launcher options to json file
 function writeSettingsFile() {
+	printDebug("writeSettingsFile() :: Begin");
+
 	// Remove ddraw options from launcher settings
 	var s = settings;
 	for (var k in ddrawOptions) {
 		if (k in s.options)
 			delete s.options[k];
 	}
+
+	printDebug(JSON.stringify(s, null, 4));
 
 	try {
 		var file = Stream.openFile(settingsFile, "w");
@@ -372,11 +388,18 @@ function writeSettingsFile() {
 		//view.msgbox(#alert, e);
 		view.msgbox(#alert, "Failed to save settings. Your options/loot filters will not save. \nThis is normally a permissions issue and running as admin once typically fixes it.", "Settings failed to save.");
 	}
+
+	printDebug("writeSettingsFile() :: End");
 }
 
 // Write ddraw settings to ddraw.ini
 function writeDdrawOptionsToIni() {
+	printDebug("writeDdrawOptionsToIni() :: Begin");
+	printDebug(JSON.stringify(settings.options, null, 4));
+
 	view.frame.setDdrawOptions(settings.options);
+
+	printDebug("writeDdrawOptionsToIni() :: End");
 }
 
 // Hide or show playmode notes on the option screen depending on selected setting
@@ -444,12 +467,12 @@ function closeModals() {
 
 // Fetch online loot filters
 async function getLootFilterList(suppressErrors = false) {
-	stdout.println("getLootFilterList() :: Begin");
+	printDebug("getLootFilterList() :: Begin");
 
 	if (!hasInternet) {
 		filterAuthorOrder.push("Local");
-		stdout.println("getLootFilterList() :: Offline, nothing to do");
-		stdout.println("getLootFilterList() :: End");
+		printDebug("\tOffline. Local only");
+		printDebug("getLootFilterList() :: End");
 		return;
 	}
 
@@ -465,7 +488,7 @@ async function getLootFilterList(suppressErrors = false) {
 			}
 		}
 		if (data[0].length != filterAuthors.length - 1) {
-			stdout.println("getLootFilterList() :: Filter list mismatch.  Expected " + data[0].length + ", received " + filterAuthors.length - 1);
+			printDebug("\tFilter list mismatch.  Expected " + data[0].length + ", received " + filterAuthors.length - 1);
 
 			if (!suppressErrors) {
 				view.msgbox(#alert, "The list of online filters contained invalid data or was missing.");
@@ -475,6 +498,7 @@ async function getLootFilterList(suppressErrors = false) {
 
 	// Sort the list of authors and keep Local on top. 		
 	for (var a in filterAuthors) {
+		printDebug("\t" + a + " added");
 		if (a == "Local") {
 			continue;
 		}
@@ -489,9 +513,8 @@ async function getLootFilterList(suppressErrors = false) {
 		return a < b ? -1 : 1;
 	});
 	filterAuthorOrder.unshift("Local");
-		
-	stdout.println("getLootFilterList() :: Loot filter list loaded");
-	stdout.println("getLootFilterList() :: End");
+
+	printDebug("getLootFilterList() :: End");
 }
 
 // Open loot filters screen
@@ -502,15 +525,15 @@ function openLootFiltersModal() {
 
 // Add filter authors to the filter options screen
 function loadLootFilterAuthors() {
-	stdout.println("loadLootFilterAuthors() :: Start");
+	printDebug("loadLootFilterAuthors() :: Start");
 
 	$(#authors-list).clear();
 	$(#filters-list).clear();
-	for (var author in filterAuthorOrder) {
-		stdout.println("loadLootFilterAuthors() :: " + author);		
+	for (var author in filterAuthorOrder) {		
+		printDebug("\tAdding " + author + " to options");
 		$(#authors-list).$append(
 			<li id="author-listitem-{author}" value="{author}" class="author-item">{author}</li>
-		);
+		);		
 	}
 
 	// If the selected filter author from the settings exists, select it
@@ -518,12 +541,12 @@ function loadLootFilterAuthors() {
 		$(#author-listitem-{settings.lootfilter.selectedAuthor}).sendEvent("click");
 	}
 
-	stdout.println("loadLootFilterAuthors() :: End");
+	printDebug("loadLootFilterAuthors() :: End");
 }
 
 // Add author's filters to the filter options screen
 function loadLootFilterAuthorFilters(author) {
-	stdout.println("loadLootFilterAuthorFilters(" + author + ") :: Start");
+	printDebug("loadLootFilterAuthorFilters(" + author + ") :: Start");
 
 	// Clear list of filters
 	$(#filters-list).clear();
@@ -531,7 +554,7 @@ function loadLootFilterAuthorFilters(author) {
 	for (var item in filterAuthorFilters[author]) {
 		var filter = filterAuthorFilters[author][item];
 
-		stdout.println("loadLootFilterAuthorFilters(" + author + ") :: " + filter.name);
+		printDebug("\tAdding " + filter.name + " to options");
 
 		// Add list item for each filter, mark one as selected if it exists
 		var classes = (author == settings.lootfilter.selectedAuthor && filter.name == settings.lootfilter.selectedFilter) ? "filter-item filter-selected" : "filter-item";
@@ -541,12 +564,12 @@ function loadLootFilterAuthorFilters(author) {
 	}
 
 	// Done updating filters
-	stdout.println("loadLootFilterAuthorFilters(" + author + ") :: End");
+	printDebug("loadLootFilterAuthorFilters(" + author + ") :: End");
 }
 
 // Provides visual feedback when updating and sets global var for other checks
 function setFiltersUpdating(updating) {
-	stdout.println("setFiltersUpdating(" + updating + ") :: Begin");
+	printDebug("setFiltersUpdating(" + updating + ") :: Begin");
 
 	filtersUpdating = updating;
 	if (updating) {
@@ -555,13 +578,13 @@ function setFiltersUpdating(updating) {
 		$(body).attributes.removeClass("wait");
 	}
 
-	stdout.println("setFiltersUpdating(" + updating + ") :: End");
+	printDebug("setFiltersUpdating(" + updating + ") :: End");
 }
 
 // Gets list of filters for each author in the PD2 filters file.  Only does this once on startup.
 async function getLootFilterAuthorFilters() {
-	stdout.println("getLootFilterAuthorFilters() :: Begin");
-	stdout.println("getLootFilterAuthorFilters() :: Fetching filters for " + filterAuthorFilters.length + " authors");
+	printDebug("getLootFilterAuthorFilters() :: Begin");
+	printDebug("\tFetching filters for " + filterAuthorFilters.length + " authors");
 
 	// Get local filters
 	var localFiles = view.frame.getLocalFiles();
@@ -575,11 +598,12 @@ async function getLootFilterAuthorFilters() {
 			};
 		}
 	}
-	stdout.println("getLootFilterAuthorFilters() :: " + filterAuthorFilters["Local"].length + " filters loaded for <Local>");
+	printDebug("\t" + filterAuthorFilters["Local"].length + " filters loaded for <Local>");
 
 	// Nothing to do if offline or only local filters are loaded
 	if (!hasInternet || filterAuthors.length == 1) {
-		stdout.println("getLootFilterAuthorFilters() :: only local filters -> End");
+		printDebug("\tNo internet or only local filters");
+		printDebug("getLootFilterAuthorFilters() :: End");
 		return;
 	}
 
@@ -589,7 +613,7 @@ async function getLootFilterAuthorFilters() {
 		if (f.author == "Local") {
 			continue;
 		}
-		stdout.println("getLootFilterAuthorFilters() :: Fetching filters for " + f.author);
+		printDebug("\tFetching filters for " + f.author);
 		var data = await awaitRequest(f.url);
 
 		// Make sure we have a good return (status 200) and valid data
@@ -608,10 +632,10 @@ async function getLootFilterAuthorFilters() {
 				}
 			}
 		}
-		stdout.println("getLootFilterAuthorFilters() :: " + filterAuthorFilters[f.author].length + " filters loaded for <" + f.author + ">");
+		printDebug("\t" + filterAuthorFilters[f.author].length + " filters loaded for " + f.author);
 	}
 
-	stdout.println("getLootFilterAuthorFilters() :: End");
+	printDebug("getLootFilterAuthorFilters() :: End");
 }
 
 // Throwing every async/await at this thing to make it actually run synchronous
@@ -641,7 +665,7 @@ async function awaitRequest(url, suppressError = false) {
 		if (!suppressError) {
 			view.msgbox(#error, msg, "Error - PD2Launcher");
 		}
-		stdout.println("checkRequestError() :: Error: " + e.name + " :: Message: " + e.message);
+		printDebug("checkRequestError() :: Error: " + e.name + " :: Message: " + e.message);
 	}
 
 	return false;
@@ -676,4 +700,18 @@ function getLaunchArguments() {
 	}
 
 	return args.join(" ");
+}
+
+// Write to debug log
+function printDebug(msg, overwrite = false) {
+	try {
+		var fileMode = (overwrite ? "w+" : "a+");
+
+		var file = Stream.openFile(debugLogFile, fileMode);
+		file << + msg + "\n";
+		file.close();
+	}
+	catch (e) {
+		//view.msgbox(#alert, e);
+	}
 }
