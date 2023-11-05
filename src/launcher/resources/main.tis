@@ -640,8 +640,11 @@ async function getLootFilterAuthorFilters() {
 
 // Throwing every async/await at this thing to make it actually run synchronous
 async function awaitRequest(url, suppressError = false) {
+	printDebug("awaitRequest(" + url + ", " + suppressError + ") :: Begin");
 	try {
 		var text = await view.request { url: url, output: #json };
+		printDebug(text);
+		printDebug("awaitRequest(" + url + ", " + suppressError + ") :: End");
 		return text;
 	} catch (e) {
 		var msg = "";
@@ -665,9 +668,9 @@ async function awaitRequest(url, suppressError = false) {
 		if (!suppressError) {
 			view.msgbox(#error, msg, "Error - PD2Launcher");
 		}
-		printDebug("checkRequestError() :: Error: " + e.name + " :: Message: " + e.message);
+		printDebug("\tError: " + e.name + " :: Message: " + e.message);
 	}
-
+	printDebug("awaitRequest(" + url + ", " + suppressError + ") :: End");
 	return false;
 }
 
