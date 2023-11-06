@@ -195,7 +195,7 @@ select {
 	width: 95%;
 	margin: 0 auto;
 	height: *;
-	margin-top: 12dip;
+	margin-top: 8dip;
 }
 
 .lootfilter-author-list {
@@ -239,9 +239,10 @@ select {
 
 .lootfilter-list-header {
 	height: 30dip;
-	width: 335ip;
+	width: *;
 	display: block;
 	overflow: hidden;
+	text-align: left;
 }
 
 
@@ -394,10 +395,10 @@ select {
 .modal {
 	position: absolute;
 	z-index: 1500;
-	left: 8%;
-	right: 8%;
-	top: 8%;
-	bottom: 8%;
+	left: 4%;
+	right: 4%;
+	top: 4%;
+	bottom: 4%;
 	background: url("img/bg_plain.jpg");
 	background-repeat: stretch;
 	display: block;
@@ -641,6 +642,10 @@ label.radio {
 .label-button:hover {
 	font-weight: bolder;
 	text-decoration: underline;
+}
+
+#options-modal > .modal-content {
+	padding-top: 10dip;
 }
 
 .note {

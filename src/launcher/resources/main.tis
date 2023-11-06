@@ -4,7 +4,7 @@ var settings = null;
 var settingsFile = System.home("PD2Launcher.json");
 var defaultSettings = {
 	options: {
-		playmode: "online",
+		gamemode: "online",
 		graphics: "3dfx",
 		skiptobnet: true,
 		sndbkg: false,
@@ -23,6 +23,7 @@ var plugyExists = false;
 
 
 // UI elements, 
+var body = $(body);
 var modalBackground = $(#modal-background);
 var optionsModal = $(#options-modal);
 var lootFilterModal = $(#loot-filter-modal);
@@ -31,7 +32,6 @@ var optionsForm = $(#options-form);
 var lootFilterAuthors = $(#lootfilter-authors);
 var lootFilterList = $(#lootfilter-list);
 var lootFilterListHeader = $(#lootfilter-header);
-var savedLootFilterListLabel = $(#saved);
 
 // Item filter info
 var filterAuthors = {};
@@ -115,8 +115,8 @@ event click $(#play-button) {
 
 	// Run PlugY or standard game
 	var args = getLaunchArguments();
-	printDebug("\tplaymode = '" + settings.options.playmode + "' args = '" + args + "'");
-	switch (settings.options.playmode) {
+	printDebug("\tgamemode = '" + settings.options.gamemode + "' args = '" + args + "'");
+	switch (settings.options.gamemode) {
 		case "plugy":
 		case "plugymodded":
 			view.frame.playPlugy(args)
@@ -129,6 +129,7 @@ event click $(#play-button) {
 
 	if (settings.options.closelauncher) {
 		closeModals();
+		view.close();
 	}
 
 	printDebug("#" + this.id + " :: End");
@@ -188,7 +189,7 @@ event change $(form) {
 
 	// Update some conditional settings and UI elements
 	setDdrawmodeOptions();
-	displayPlaymodeNotes();
+	displayGamemodeNotes();
 	displayGraphicsNotes();
 	displayDdrawModeOptions();
 }
@@ -288,6 +289,7 @@ async function refreshFilters() {
 	await getLootFilterAuthorFilters();
 
 	setFiltersUpdating(false);
+	
 	loadLootFilterAuthors();
 	
 	printDebug("refreshFilters() :: End");
@@ -298,8 +300,8 @@ async function refreshFilters() {
 function checkForPlugy() {
 	var plugyExists = System.scanFiles("plugy.exe");
 	if (!plugyExists) {
-		$(form).value.playmode = "online";
-		$(#playmode-options-container).style.set({ display: "none" });
+		$(form).value.gamemode = "online";
+		$(#gamemode-options-container).style.set({ display: "none" });
 	}
 }
 
@@ -402,15 +404,15 @@ function writeDdrawOptionsToIni() {
 	printDebug("writeDdrawOptionsToIni() :: End");
 }
 
-// Hide or show playmode notes on the option screen depending on selected setting
-function displayPlaymodeNotes() {
-	var online = (settings.options.playmode == "online");
-	var plugy = (settings.options.playmode == "plugy")
-	var plugymodded = (settings.options.playmode == "plugymodded");
+// Hide or show gamemode notes on the option screen depending on selected setting
+function displayGamemodeNotes() {
+	var online = (settings.options.gamemode == "online");
+	var plugy = (settings.options.gamemode == "plugy")
+	var plugymodded = (settings.options.gamemode == "plugymodded");
 
-	$(#playmode-online-note).style.set({ display: (online ? "block" : "none") });
-	$(#playmode-plugy-note).style.set({ display: (plugy ? "block" : "none") });
-	$(#playmode-plugymodded-note).style.set({ display: (plugymodded ? "block" : "none") });
+	$(#gamemode-online-note).style.set({ display: (online ? "block" : "none") });
+	$(#gamemode-plugy-note).style.set({ display: (plugy ? "block" : "none") });
+	$(#gamemode-plugymodded-note).style.set({ display: (plugymodded ? "block" : "none") });
 }
 
 // Hide or show graphic mode notes on the option screen depending on selected setting
@@ -539,7 +541,7 @@ function loadLootFilterAuthors() {
 	// If the selected filter author from the settings exists, select it
 	if (settings.lootfilter.selectedAuthor in filterAuthors) {
 		$(#author-listitem-{settings.lootfilter.selectedAuthor}).sendEvent("click");
-	}
+	}	
 
 	printDebug("loadLootFilterAuthors() :: End");
 }
@@ -572,6 +574,7 @@ function setFiltersUpdating(updating) {
 	printDebug("setFiltersUpdating(" + updating + ") :: Begin");
 
 	filtersUpdating = updating;
+	body.state.busy = updating;
 	if (updating) {
 		$(body).attributes.addClass("wait");
 	} else {
@@ -642,10 +645,10 @@ async function getLootFilterAuthorFilters() {
 async function awaitRequest(url, suppressError = false) {
 	printDebug("awaitRequest(" + url + ", " + suppressError + ") :: Begin");
 	try {
-		var text = await view.request { url: url, output: #json };
-		printDebug(text);
+		var response = await view.request { url: url, output: #json };
+		printDebug("status = " + response[1] + "\ndata = " + JSON.stringify(response[0], null, 4));
 		printDebug("awaitRequest(" + url + ", " + suppressError + ") :: End");
-		return text;
+		return response;
 	} catch (e) {
 		var msg = "";
 		switch (e.message.replace("\n", "")) {
@@ -682,7 +685,7 @@ function getLaunchArguments() {
 		args.push('-3dfx');
 	}
 
-	switch (settings.options.playmode) {
+	switch (settings.options.gamemode) {
 		case 'plugymodded':
 			args.push('-direct');
 			args.push('-txt');
