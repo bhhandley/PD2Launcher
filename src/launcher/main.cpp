@@ -178,10 +178,10 @@ std::string ws2s(const std::wstring& wstr) {
 bool lootFilter(sciter::string author, sciter::string filter, sciter::string download_url, sciter::string url) {
 	fs::path defaultFilterPath = (fs::current_path() / "loot.filter").lexically_normal();
 	fs::path path = (fs::current_path() / "filters").lexically_normal();
-
-	if (author == std::wstring("local", "local" + strlen("local"))) {
+	
+	if (_stricmp(ws2s(author).c_str(), "local") == 0) {
 		// Is local folder
-		path = (path / "local").lexically_normal();
+		path = (path / "Local").lexically_normal();
 		fs::path filterPath = (path / filter).lexically_normal();
 
 		if (!fs::exists(filterPath)) {
@@ -358,6 +358,41 @@ bool checkInternetConnection(bool showMessage = false) {
 	return false;
 }
 
+std::string getDiablo2SavePath() {
+	CHAR val[256];
+	DWORD dataSize = _countof(val);
+
+	if (ERROR_SUCCESS == RegGetValueA(HKEY_CURRENT_USER, "SOFTWARE\\Blizzard Entertainment\\Diablo II", "Save Path", RRF_RT_REG_SZ, nullptr /*type not required*/, &val, &dataSize)) {
+		return std::string(val, dataSize - 1);
+	}
+	else {
+		return "";
+	}
+}
+
+std::string getPlugySavePath() {
+	mINI::INIFile file("plugy.ini");
+	mINI::INIStructure ini;
+
+	std::string defaultSavePath = getDiablo2SavePath();
+	bool pathChanged = false;
+
+	file.read(ini);
+
+	if (ini.has("SAVEPATH") && ini.get("SAVEPATH").has("ActiveSavePathChange") && ini.get("SAVEPATH").has("SavePath")) {
+		std::string activeSavePathChange = ini.get("SAVEPATH").get("ActiveSavePathChange");
+		if (activeSavePathChange == "0" || activeSavePathChange == "1") {
+			pathChanged = (activeSavePathChange == "1");
+		}
+		if (pathChanged) {
+			return ini.get("SAVEPATH").get("SavePath");
+		}
+	}
+	
+	return defaultSavePath;
+}
+
+
 class frame : public sciter::window {
 public:
 	frame() : window(SW_MAIN) {}
@@ -373,6 +408,7 @@ public:
 			SOM_FUNC(setDdrawOptions),
 			SOM_FUNC(remPD2WindowsSettings),
 			SOM_FUNC(setPD2WindowsSettings),
+			SOM_FUNC(getD2PlugySavePath)
 			)
 		SOM_PROPS(
 			SOM_PROP(hasInternet)
@@ -466,6 +502,10 @@ public:
 	bool setDdrawOptions(sciter::value ddrawoptions) {
 		setDdrawIni(ddrawoptions);
 		return true;
+	}
+
+	std::string getD2PlugySavePath() {
+		return getPlugySavePath();
 	}
 
 private:

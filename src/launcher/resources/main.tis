@@ -150,8 +150,18 @@ event click $(#edit-plugyini-button) {
 	Sciter.launch("plugy.ini");
 }
 
+// Open Diablo 2 Save Folder using registry setting
+event click $(#open-save-folder-button) {
+	var savePath = view.frame.getD2PlugySavePath();
+	var savePathExists = System.scanFiles(savePath + "\*");
+	if (savePathExists) {
+		Sciter.launch(savePath);
+	}
+}
+
 // Show options screen
 event click $(#options-button) {
+	checkForPlugy();
 	modalBackground.attributes.addClass("is-visible");
 	optionsModal.attributes.addClass("is-visible");
 }
@@ -299,10 +309,16 @@ async function refreshFilters() {
 // Hide options if plugy isn't found
 function checkForPlugy() {
 	var plugyExists = System.scanFiles("plugy.exe");
+	var displayMode;
+
 	if (!plugyExists) {
 		$(form).value.gamemode = "online";
-		$(#gamemode-options-container).style.set({ display: "none" });
+		displayMode = "none";
+	} else { 
+		displayMode = "block";
 	}
+
+	$(#gamemode-options-container).style.set({ display: displayMode });
 }
 
 // Read and load launcher settings
