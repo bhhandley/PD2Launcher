@@ -29,7 +29,7 @@ std::string BETA_CLIENT_FILES_BUCKET = "https://storage.googleapis.com/storage/v
 
 std::string lastFilterDownload = "";
 
-std::vector<std::string> dont_update = { "D2.LNG", "BnetLog.txt", "ProjectDiablo.cfg", "ddraw.ini", "default.filter", "loot.filter", "UI.ini", "d2gl.yaml" };
+std::vector<std::string> dont_update = { "D2.LNG", "BnetLog.txt", "ProjectDiablo.cfg", "ddraw.ini", "loot.filter", "UI.ini", "d2gl.yaml" };
 std::vector<std::string> required_files = { "ddraw.ini", "default.filter", "loot.filter", "d2gl.yaml" };
 HANDLE pd2Mutex;
 
@@ -176,81 +176,47 @@ std::string ws2s(const std::wstring& wstr) {
 }
 
 bool lootFilter(sciter::string author, sciter::string filter, sciter::string download_url, sciter::string url) {
-	fs::path defaultFilterPath = (fs::current_path() / "loot.filter").lexically_normal();
-	fs::path path = (fs::current_path() / "filters").lexically_normal();
-	
-	if (_stricmp(ws2s(author).c_str(), "local") == 0) {
-		// Is local folder
-		path = (path / "Local").lexically_normal();
-		fs::path filterPath = (path / filter).lexically_normal();
+	fs::path filtersPath = (fs::current_path() / "filters").lexically_normal();
+	fs::path authorPath = (filtersPath / author).lexically_normal();
+	fs::path filterFile = (authorPath / filter).lexically_normal();
 
-		if (!fs::exists(filterPath)) {
-			return false;
-		}
-
-		if (fs::exists(defaultFilterPath)) {
-			fs::remove(defaultFilterPath);
-		}
-
-		fs::create_symlink(filterPath, defaultFilterPath);
+	if (ws2s(author) == "" || ws2s(filter) == "") {
+		return false;
 	}
-	else {
-		if (ws2s(author) == "" || ws2s(filter) == "" || ws2s(download_url) == "" || ws2s(url) == "" || lastFilterDownload == ws2s(download_url)) {
-			return false;
-		}
 
-		path = (path / "online").lexically_normal();
-		fs::path authorPath = (path / author).lexically_normal();
-		fs::path filterPath = (authorPath / filter).lexically_normal();
+	if (!fs::exists(authorPath)) {
+		fs::create_directories(authorPath);
+	}
 
-		if (!fs::exists(authorPath)) {
-			fs::create_directories(authorPath);
-		}
+	if (ws2s(download_url) != "") {
+		downloadFile(ws2s(download_url), filterFile.string());
+	}
 
-		downloadFile(ws2s(download_url), filterPath.string());
-
-		if (!fs::exists(filterPath)) {
-			return false;
-		}
-
-		if (fs::exists(defaultFilterPath)) {
-			fs::remove(defaultFilterPath);
-		}
-
-		fs::copy(filterPath, defaultFilterPath);
-
-		lastFilterDownload = ws2s(download_url);
+	if (!fs::exists(filterFile)) {
+		return false;
 	}
 
 	return true;
 }
 
 void checkLootFilterFileStructure() {
-	fs::path filtersPath = (fs::current_path() / "filters").lexically_normal();
-	fs::path localPath = (filtersPath / "local").lexically_normal();
-	fs::path onlinePath = (filtersPath / "online").lexically_normal();
+	fs::path cwd = fs::current_path().lexically_normal();
+	fs::path filtersPath = (cwd / "filters").lexically_normal();
+	fs::path localFiltersPath = (filtersPath / "Local").lexically_normal();
 
 	if (!fs::exists(filtersPath)) {
 		fs::create_directories(filtersPath);
 	}
 
-	if (!fs::exists(localPath)) {
-		fs::create_directories(localPath);
+	if (!fs::exists(localFiltersPath)) {
+		fs::create_directories(localFiltersPath);
 
-		fs::path defaultFilterPath = (fs::current_path() / "default.filter").lexically_normal();
-		fs::path lootFilterPath = (fs::current_path() / "loot.filter").lexically_normal();
+		fs::path defaultFilterFile = (cwd / "default.filter").lexically_normal();
 
-		if (fs::exists(defaultFilterPath)) {
-			fs::copy(defaultFilterPath, localPath / "default.filter");
+		// Copy the default filter to local filters so it's always a selectable option and true defaults
+		if (fs::exists(defaultFilterFile)) {
+			fs::copy(defaultFilterFile, localFiltersPath / "default.filter");
 		}
-
-		if (fs::exists(lootFilterPath)) {
-			fs::copy(lootFilterPath, localPath / "loot.filter");
-		}
-	}
-
-	if (!fs::exists(onlinePath)) {
-		fs::create_directories(onlinePath);
 	}
 }
 
@@ -403,7 +369,7 @@ public:
 			SOM_FUNC(play),
 			SOM_FUNC(playPlugy),
 			SOM_FUNC(setLootFilter),
-			SOM_FUNC(getLocalFiles),
+			SOM_FUNC(getLocalFilters),
 			SOM_FUNC(getDdrawOptions),
 			SOM_FUNC(setDdrawOptions),
 			SOM_FUNC(remPD2WindowsSettings),
@@ -480,14 +446,13 @@ public:
 		return lootFilter(author, filter, download_url, url);
 	}
 
-	std::vector<std::string> getLocalFiles() {
-		fs::path filtersPath = (fs::current_path() / "filters").lexically_normal();
-		fs::path localPath = (filtersPath / "local").lexically_normal();
+	std::vector<std::string> getLocalFilters() {
+		fs::path filtersPath = (fs::current_path() / "filters/local").lexically_normal();
 
 		std::vector<std::string> files = {};
 
-		if (fs::exists(localPath)) {
-			for (const auto& entry : fs::directory_iterator(localPath)) {
+		if (fs::exists(filtersPath)) {
+			for (const auto& entry : fs::directory_iterator(filtersPath)) {
 				files.push_back(entry.path().filename().string());
 			}
 		}

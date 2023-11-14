@@ -606,8 +606,8 @@ async function getLootFilterAuthorFilters() {
 	printDebug("\tFetching filters for " + filterAuthorFilters.length + " authors");
 
 	// Get local filters
-	var localFiles = view.frame.getLocalFiles();
-	for (var f in localFiles) {
+	var localFilters = view.frame.getLocalFilters();
+	for (var f in localFilters) {
 		f = f + "";
 		if (f.indexOf(".filter") != -1) {
 			filterAuthorFilters["Local"]["Local" + f] = {
