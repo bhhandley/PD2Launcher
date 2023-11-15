@@ -389,7 +389,7 @@ function writeSettingsFile() {
 	printDebug("writeSettingsFile() :: Begin");
 
 	// Remove ddraw options from launcher settings
-	var s = settings;
+	var s = settings.clone(true);
 	for (var k in ddrawOptions) {
 		if (k in s.options)
 			delete s.options[k];
